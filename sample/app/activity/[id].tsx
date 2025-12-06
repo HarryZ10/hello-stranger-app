@@ -1,20 +1,22 @@
 import UserAvatar from '@/components/UserAvatar';
 import { theme } from '@/constants/theme';
+import activitiesApi from '@/src/api/endpoints/activities';
 import { useAuth } from '@/src/hooks/useAuth';
 import type { Activity } from '@/src/types';
 import { FontAwesome } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useColorScheme,
+  View
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -28,48 +30,31 @@ export default function ActivityDetailScreen() {
   const [activity, setActivity] = useState<Activity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock activity data for now
   useEffect(() => {
-    // TODO: Fetch from API
-    setActivity({
-      id: Number(id),
-      creator: {
-        id: 1,
-        email: 'john@example.com',
-        username: 'john',
-        display_name: 'John Doe',
-        trust_score: 4.5,
-        total_reviews: 12,
-        is_verified: true,
-        is_phone_verified: true,
-        is_email_verified: true,
-        share_location: true,
-        location_visibility: 'approximate',
-        personality_traits: [],
-      },
-      title: 'Morning Yoga in the Park',
-      description:
-        'Join us for a relaxing morning yoga session. All levels welcome! Bring your own mat. We will practice various poses and breathing exercises. Perfect way to start your day!',
-      category: { id: 1, name: 'Sports & Fitness', icon: '⚽', color: '#ef4444' },
-      latitude: 37.7749,
-      longitude: -122.4194,
-      location_name: 'Golden Gate Park',
-      address: '501 Stanyan St, San Francisco, CA 94117',
-      start_time: new Date(Date.now() + 3600000).toISOString(),
-      end_time: new Date(Date.now() + 7200000).toISOString(),
-      max_participants: 15,
-      current_participants_count: 8,
-      visibility: 'public',
-      status: 'active',
-      min_trust_score: 0,
-      requirements: 'Bring your own yoga mat. Comfortable clothing recommended.',
-      is_full: false,
-      spots_left: 7,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-    setIsLoading(false);
+    const fetchActivity = async () => {
+      if (!id) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const activityId = Number(id);
+        console.log('Fetching activity:', activityId);
+        const data = await activitiesApi.getActivity(activityId);
+        console.log('Activity fetched:', data);
+        setActivity(data);
+      } catch (err: any) {
+        console.error('Failed to fetch activity:', err);
+        setError(err.response?.data?.detail || 'Failed to load activity');
+        Alert.alert('Error', 'Failed to load activity. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchActivity();
   }, [id]);
 
   const formatDateTime = (dateString: string) => {
@@ -109,7 +94,7 @@ export default function ActivityDetailScreen() {
     Alert.alert('Share', 'Share functionality coming soon!');
   };
 
-  if (isLoading || !activity) {
+  if (isLoading) {
     return (
       <View
         style={[
@@ -121,11 +106,48 @@ export default function ActivityDetailScreen() {
           },
         ]}
       >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text
-          style={{ color: isDark ? theme.colors.text.dark : theme.colors.text.light }}
+          style={{ 
+            color: isDark ? theme.colors.text.dark : theme.colors.text.light,
+            marginTop: 12
+          }}
         >
-          Loading...
+          Loading activity...
         </Text>
+      </View>
+    );
+  }
+
+  if (error || !activity) {
+    return (
+      <View
+        style={[
+          styles.loadingContainer,
+          {
+            backgroundColor: isDark
+              ? theme.colors.background.dark
+              : theme.colors.background.light,
+          },
+        ]}
+      >
+        <FontAwesome name="exclamation-circle" size={48} color={theme.colors.error} />
+        <Text
+          style={{ 
+            color: isDark ? theme.colors.text.dark : theme.colors.text.light,
+            marginTop: 12,
+            textAlign: 'center',
+            paddingHorizontal: 32
+          }}
+        >
+          {error || 'Activity not found'}
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.retryButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -223,7 +245,7 @@ export default function ActivityDetailScreen() {
                   },
                 ]}
               >
-                {activity.creator.trust_score.toFixed(1)} • {activity.creator.total_reviews} reviews
+                {activity.creator.trust_score ? activity.creator.trust_score.toFixed(1) : 'N/A'} • {activity.creator.total_reviews || 0} reviews
               </Text>
             </View>
           </View>
@@ -577,6 +599,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.gray[400],
   },
   joinButtonText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  retryButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.lg,
+  },
+  retryButtonText: {
     color: theme.colors.white,
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,

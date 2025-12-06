@@ -1,36 +1,35 @@
-# 🌍 Social Activity Finder - API Documentation
+# API Documentation - Social Activity Finder
 
-> A location-based social networking application that connects people based on real-time activities happening nearby, with personality matching and safety features.
+> Complete REST API reference for the location-based social networking application
+
+**Version:** 1.0  
+**Base URL:** `http://localhost:8000/api/`  
+**Authentication:** JWT Bearer Token (except registration & login)
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overview](#overview)
-2. [Authentication Flow](#authentication-flow)
-3. [Complete User Journey Example](#complete-user-journey-example)
-4. [API Endpoints Reference](#api-endpoints-reference)
-5. [Data Models](#data-models)
-6. [Error Handling](#error-handling)
+2. [Authentication](#authentication)
+3. [Users API](#users-api)
+4. [Activities API](#activities-api)
+5. [Location API](#location-api)
+6. [Social API](#social-api)
+7. [Safety API](#safety-api)
+8. [Error Handling](#error-handling)
 
 ---
 
 ## Overview
 
-### Base URL
-```
-http://localhost:8000/api/
-```
-
-### Authentication
-All endpoints (except registration and login) require JWT Bearer token authentication.
-
+### Authentication Header
 ```
 Authorization: Bearer <access_token>
 ```
 
-### Response Format
-All responses are JSON. Paginated lists include:
+### Pagination
+List endpoints return paginated responses:
 ```json
 {
   "count": 100,
@@ -40,630 +39,688 @@ All responses are JSON. Paginated lists include:
 }
 ```
 
+### Response Codes
+- `200` - Success
+- `201` - Created
+- `204` - No Content (successful delete)
+- `400` - Bad Request (validation errors)
+- `401` - Unauthorized (missing/invalid token)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found
+- `500` - Internal Server Error
+
 ---
 
-## Authentication Flow
+## Authentication
 
-### Step 1: Register a New User
+### Register New User
 
-**Endpoint:** `POST /api/auth/register/`
+**POST** `/auth/register/`
 
-**Request:**
+**Public endpoint** - No authentication required
+
+**Request Body:**
 ```json
 {
-  "email": "sarah@example.com",
-  "username": "sarah_jane",
+  "email": "user@example.com",
+  "username": "johndoe",
   "password": "securepass123",
   "password_confirm": "securepass123",
-  "first_name": "Sarah",
-  "last_name": "Jane",
-  "display_name": "Sarah-Jane"
+  "first_name": "John",
+  "last_name": "Doe"
 }
 ```
 
-**Response (201 Created):**
+**Response:** `201 Created`
 ```json
 {
   "id": 1,
-  "email": "sarah@example.com",
-  "username": "sarah_jane",
-  "first_name": "Sarah",
-  "last_name": "Jane",
-  "display_name": "Sarah-Jane"
+  "email": "user@example.com",
+  "username": "johndoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "bio": "",
+  "avatar": null,
+  "date_joined": "2025-12-06T10:30:00Z"
 }
 ```
 
 ---
 
-### Step 2: Login to Get JWT Tokens
+### Login (Obtain Token)
 
-**Endpoint:** `POST /api/auth/login/`
+**POST** `/auth/login/`
 
-**Request:**
+**Public endpoint**
+
+**Request Body:**
 ```json
 {
-  "email": "sarah@example.com",
+  "email": "user@example.com",
   "password": "securepass123"
 }
 ```
 
-**Response (200 OK):**
+**Response:** `200 OK`
 ```json
 {
-  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
 }
 ```
 
-> 💡 **Important:** Save the `access` token for API requests. Use `refresh` token to get a new access token when it expires.
+**Token Expiry:**
+- Access Token: 5 minutes
+- Refresh Token: 1 day
 
 ---
 
-### Step 3: Refresh Token (When Access Token Expires)
+### Refresh Token
 
-**Endpoint:** `POST /api/auth/refresh/`
+**POST** `/auth/refresh/`
 
-**Request:**
+**Public endpoint**
+
+**Request Body:**
 ```json
 {
-  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
 }
 ```
 
-**Response (200 OK):**
+**Response:** `200 OK`
 ```json
 {
-  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "access": "eyJ0eXAiOiJKV1QiLCJhbGc..."
 }
 ```
 
 ---
 
-## Complete User Journey Example
+### Verify Token
 
-### 🎭 Scenario: Sarah Wants to Find People for a Picnic
+**POST** `/auth/verify/`
 
-Sarah just moved to San Francisco and wants to meet new people. She's looking for friendly, outgoing people to have a picnic with in Golden Gate Park.
+**Public endpoint**
+
+**Request Body:**
+```json
+{
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+}
+```
+
+**Response:** `200 OK` (empty body if valid) or `401 Unauthorized`
 
 ---
 
-### Journey Step 1: Sarah Sets Up Her Profile
+## Users API
 
-#### 1.1 Get Current Profile
-**Endpoint:** `GET /api/users/me/`
+### Get Current User Profile
 
-**Response:**
+**GET** `/users/me/`
+
+**Response:** `200 OK`
 ```json
 {
   "id": 1,
-  "email": "sarah@example.com",
-  "username": "sarah_jane",
-  "first_name": "Sarah",
-  "last_name": "Jane",
-  "display_name": "Sarah-Jane",
-  "bio": "",
-  "avatar": null,
-  "date_of_birth": null,
-  "phone_number": "",
-  "trust_score": "0.00",
-  "total_reviews": 0,
-  "is_verified": false,
-  "is_email_verified": false,
-  "is_phone_verified": false,
-  "share_location": true,
-  "location_visibility": "approximate",
-  "personality_traits_list": [],
-  "preferences": null,
-  "date_joined": "2025-12-05T20:00:00Z"
-}
-```
-
-#### 1.2 Update Profile with Bio and Info
-**Endpoint:** `PATCH /api/users/me/`
-
-**Request:**
-```json
-{
-  "bio": "Just moved to SF! Love hiking, picnics, and meeting new friends 🌸",
-  "display_name": "Sarah-Jane",
-  "date_of_birth": "1995-06-15",
-  "location_visibility": "approximate"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "bio": "Just moved to SF! Love hiking, picnics, and meeting new friends 🌸",
-  "display_name": "Sarah-Jane",
-  ...
+  "email": "user@example.com",
+  "username": "johndoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "bio": "Love exploring new places!",
+  "avatar": "http://localhost:8000/media/avatars/profile.jpg",
+  "date_joined": "2025-12-06T10:30:00Z"
 }
 ```
 
 ---
 
-### Journey Step 2: Sarah Adds Personality Traits
+### Update Current User Profile
 
-#### 2.1 View Available Personality Traits
-**Endpoint:** `GET /api/traits/`
+**PUT/PATCH** `/users/me/`
 
-**Response:**
+**Request Body:**
 ```json
 {
-  "count": 12,
+  "first_name": "John",
+  "last_name": "Smith",
+  "bio": "Adventure seeker",
+  "avatar": "<multipart/form-data file upload>"
+}
+```
+
+**Response:** `200 OK` (updated user object)
+
+---
+
+### Get User Public Profile
+
+**GET** `/users/{id}/`
+
+**Response:** `200 OK`
+```json
+{
+  "id": 2,
+  "username": "janedoe",
+  "bio": "Coffee enthusiast",
+  "avatar": "http://localhost:8000/media/avatars/jane.jpg"
+}
+```
+
+---
+
+### List All Users (Admin Only)
+
+**GET** `/users/`
+
+**Permissions:** Admin users only
+
+**Response:** `200 OK`
+```json
+{
+  "count": 50,
+  "next": null,
+  "previous": null,
   "results": [
-    {"id": 1, "name": "Friendly", "icon": "😊", "color": "#22c55e", "description": "Warm and welcoming to new people"},
-    {"id": 2, "name": "Nerdy", "icon": "🤓", "color": "#8b5cf6", "description": "Loves learning and intellectual discussions"},
-    {"id": 3, "name": "Athletic", "icon": "💪", "color": "#ef4444", "description": "Active and sporty lifestyle"},
-    {"id": 4, "name": "Creative", "icon": "🎨", "color": "#f59e0b", "description": "Artistic and imaginative"},
-    {"id": 5, "name": "Adventurous", "icon": "🏔️", "color": "#06b6d4", "description": "Loves exploring and trying new things"},
-    {"id": 6, "name": "Foodie", "icon": "🍕", "color": "#ec4899", "description": "Passionate about food and culinary experiences"},
-    {"id": 7, "name": "Chill", "icon": "😌", "color": "#6366f1", "description": "Relaxed and easy-going personality"},
-    {"id": 8, "name": "Outgoing", "icon": "🎉", "color": "#f97316", "description": "Social and loves meeting new people"},
-    {"id": 9, "name": "Bookworm", "icon": "📚", "color": "#84cc16", "description": "Loves reading and literature"},
-    {"id": 10, "name": "Gamer", "icon": "🎮", "color": "#a855f7", "description": "Passionate about video games"},
-    {"id": 11, "name": "Music Lover", "icon": "🎵", "color": "#14b8a6", "description": "Lives and breathes music"},
-    {"id": 12, "name": "Nature Lover", "icon": "🌿", "color": "#22c55e", "description": "Enjoys the outdoors and nature"}
+    {
+      "id": 1,
+      "email": "user@example.com",
+      "username": "johndoe",
+      "first_name": "John",
+      "last_name": "Doe",
+      "bio": "...",
+      "avatar": "...",
+      "date_joined": "2025-12-06T10:30:00Z"
+    }
   ]
 }
 ```
 
-#### 2.2 Add Personality Traits to Profile
-**Endpoint:** `POST /api/users/me/traits/`
-
-**Request (Add "Friendly" with high prominence):**
-```json
-{
-  "trait_id": 1,
-  "prominence_score": 5
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "trait": {
-    "id": 1,
-    "name": "Friendly",
-    "icon": "😊",
-    "color": "#22c55e",
-    "description": "Warm and welcoming to new people"
-  },
-  "prominence_score": 5
-}
-```
-
-> 💡 **Tip:** Repeat this to add more traits like "Outgoing" (id: 8) and "Foodie" (id: 6)
-
 ---
 
-### Journey Step 3: Sarah Updates Her Location
+### Find Nearby Users
 
-#### 3.1 Share Current Location
-**Endpoint:** `POST /api/location/update/`
+**GET** `/users/nearby/`
 
-**Request:**
-```json
-{
-  "latitude": 37.7694,
-  "longitude": -122.4862,
-  "accuracy": 10.5,
-  "current_activity": "Looking for picnic buddies!",
-  "is_visible": true
-}
-```
+**Query Parameters:**
+- `radius` (optional, default: 10) - Search radius in kilometers
+- `latitude` (required if no current location) - User's latitude
+- `longitude` (required if no current location) - User's longitude
 
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "latitude": "37.769400",
-  "longitude": "-122.486200",
-  "accuracy": 10.5,
-  "altitude": null,
-  "is_current": true,
-  "is_visible": true,
-  "current_activity": "Looking for picnic buddies!",
-  "timestamp": "2025-12-05T14:30:00Z"
-}
-```
-
----
-
-### Journey Step 4: Sarah Creates a Picnic Activity
-
-#### 4.1 View Activity Categories
-**Endpoint:** `GET /api/activities/categories/`
-
-**Response:**
-```json
-{
-  "count": 12,
-  "results": [
-    {"id": 1, "name": "Sports & Fitness", "icon": "⚽", "color": "#ef4444", "description": "Physical activities and sports"},
-    {"id": 2, "name": "Food & Dining", "icon": "🍽️", "color": "#f59e0b", "description": "Restaurants, cafes, and food experiences"},
-    {"id": 3, "name": "Outdoor Adventures", "icon": "🏕️", "color": "#22c55e", "description": "Hiking, camping, and nature activities"},
-    {"id": 4, "name": "Social & Meetups", "icon": "👥", "color": "#3b82f6", "description": "General social gatherings"},
-    ...
-  ]
-}
-```
-
-#### 4.2 Create the Picnic Activity
-**Endpoint:** `POST /api/activities/`
-
-**Request:**
-```json
-{
-  "title": "Sunset Picnic at Golden Gate Park 🌅",
-  "description": "Hey everyone! I'm new to SF and would love to meet some friendly people for a chill picnic. Bringing homemade sandwiches and lemonade. All are welcome - just bring your good vibes and maybe a blanket!",
-  "category_id": 4,
-  "latitude": 37.7694,
-  "longitude": -122.4862,
-  "location_name": "Golden Gate Park - Hippie Hill",
-  "address": "Golden Gate Park, San Francisco, CA",
-  "start_time": "2025-12-07T16:00:00Z",
-  "end_time": "2025-12-07T19:00:00Z",
-  "max_participants": 10,
-  "visibility": "public",
-  "min_trust_score": 0,
-  "requirements": "Bring something to share if you can! No pressure though 😊"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "title": "Sunset Picnic at Golden Gate Park 🌅",
-  "description": "Hey everyone! I'm new to SF...",
-  "category": {
-    "id": 4,
-    "name": "Social & Meetups",
-    "icon": "👥",
-    "color": "#3b82f6"
-  },
-  "latitude": "37.769400",
-  "longitude": "-122.486200",
-  "location_name": "Golden Gate Park - Hippie Hill",
-  "address": "Golden Gate Park, San Francisco, CA",
-  "start_time": "2025-12-07T16:00:00Z",
-  "end_time": "2025-12-07T19:00:00Z",
-  "max_participants": 10,
-  "current_participants_count": 0,
-  "spots_left": 10,
-  "visibility": "public",
-  "status": "active",
-  "creator": 1,
-  "creator_display_name": "Sarah-Jane",
-  "creator_avatar": null,
-  "created_at": "2025-12-05T14:35:00Z"
-}
-```
-
----
-
-### Journey Step 5: Matthew Discovers Sarah's Activity
-
-Matthew is another user who lives nearby. He opens the app to find activities.
-
-#### 5.1 Matthew Updates His Location
-**Endpoint:** `POST /api/location/update/`
-
-**Request:**
-```json
-{
-  "latitude": 37.7749,
-  "longitude": -122.4194,
-  "current_activity": "Free this weekend!",
-  "is_visible": true
-}
-```
-
-#### 5.2 Matthew Finds Nearby Activities
-**Endpoint:** `GET /api/activities/nearby/`
-
-**Response:**
+**Response:** `200 OK`
 ```json
 [
   {
-    "activity": {
-      "id": 1,
-      "title": "Sunset Picnic at Golden Gate Park 🌅",
-      "category": {
-        "id": 4,
-        "name": "Social & Meetups",
-        "icon": "👥"
-      },
-      "latitude": "37.769400",
-      "longitude": "-122.486200",
-      "location_name": "Golden Gate Park - Hippie Hill",
-      "start_time": "2025-12-07T16:00:00Z",
-      "max_participants": 10,
-      "current_participants_count": 0,
-      "spots_left": 10,
-      "creator_display_name": "Sarah-Jane",
-      "creator_avatar": null
+    "user": {
+      "id": 2,
+      "username": "janedoe",
+      "bio": "Coffee enthusiast",
+      "avatar": "..."
     },
-    "distance_km": 2.45
+    "distance_km": 2.5,
+    "current_activity": "Looking for coffee"
+  },
+  {
+    "user": {
+      "id": 3,
+      "username": "bobsmith",
+      "bio": "Fitness lover",
+      "avatar": "..."
+    },
+    "distance_km": 4.8,
+    "current_activity": ""
   }
 ]
 ```
 
-#### 5.3 Matthew Views Activity Details
-**Endpoint:** `GET /api/activities/1/`
+---
 
-**Response:**
+## Activities API
+
+### List Activity Categories
+
+**GET** `/activities/categories/`
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "name": "Sports",
+    "icon": "⚽",
+    "color": "#22c55e",
+    "description": "Sports and fitness activities",
+    "is_active": true
+  },
+  {
+    "id": 2,
+    "name": "Food & Dining",
+    "icon": "🍕",
+    "color": "#f59e0b",
+    "description": "Restaurants, cafes, food events",
+    "is_active": true
+  }
+]
+```
+
+---
+
+### List Activities
+
+**GET** `/activities/`
+
+**Query Parameters:**
+- `category` - Filter by category ID
+- `status` - Filter by status (`active`, `completed`, `cancelled`, `full`)
+- `visibility` - Filter by visibility (`public`, `private`, `friends`, `invite`)
+- `start_date` - Filter activities starting after this date (ISO 8601)
+- `end_date` - Filter activities starting before this date
+
+**Response:** `200 OK`
 ```json
 {
-  "id": 1,
-  "title": "Sunset Picnic at Golden Gate Park 🌅",
-  "description": "Hey everyone! I'm new to SF and would love to meet some friendly people...",
-  "category": {
-    "id": 4,
-    "name": "Social & Meetups",
-    "icon": "👥",
-    "color": "#3b82f6"
-  },
-  "latitude": "37.769400",
-  "longitude": "-122.486200",
-  "location_name": "Golden Gate Park - Hippie Hill",
-  "address": "Golden Gate Park, San Francisco, CA",
-  "start_time": "2025-12-07T16:00:00Z",
-  "end_time": "2025-12-07T19:00:00Z",
-  "max_participants": 10,
-  "current_participants_count": 0,
-  "spots_left": 10,
-  "is_full": false,
-  "visibility": "public",
-  "status": "active",
-  "min_age": null,
-  "min_trust_score": "0.00",
-  "requirements": "Bring something to share if you can! No pressure though 😊",
-  "creator": 1,
-  "creator_display_name": "Sarah-Jane",
-  "creator_avatar": null,
-  "creator_trust_score": "0.00",
-  "participants": [],
-  "comments": [],
-  "user_participation": null,
-  "created_at": "2025-12-05T14:35:00Z"
+  "count": 25,
+  "next": "http://localhost:8000/api/activities/?page=2",
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "creator": {
+        "id": 1,
+        "username": "johndoe",
+        "avatar": "..."
+      },
+      "title": "Evening Basketball Game",
+      "description": "Casual pickup game at the park",
+      "category": {
+        "id": 1,
+        "name": "Sports",
+        "icon": "⚽",
+        "color": "#22c55e"
+      },
+      "latitude": "40.712776",
+      "longitude": "-74.005974",
+      "location_name": "Central Park",
+      "address": "New York, NY 10024",
+      "start_time": "2025-12-06T18:00:00Z",
+      "end_time": "2025-12-06T20:00:00Z",
+      "max_participants": 10,
+      "current_participants_count": 5,
+      "spots_left": 5,
+      "visibility": "public",
+      "status": "active",
+      "min_age": null,
+      "min_trust_score": "0.00",
+      "requirements": "",
+      "cover_image": null,
+      "is_full": false,
+      "is_active": true,
+      "created_at": "2025-12-05T12:00:00Z",
+      "updated_at": "2025-12-05T12:00:00Z"
+    }
+  ]
 }
 ```
 
-#### 5.4 Matthew Joins the Activity
-**Endpoint:** `POST /api/activities/1/join/`
+---
 
-**Response (201 Created):**
+### Create Activity
+
+**POST** `/activities/`
+
+**Request Body:**
+```json
+{
+  "title": "Morning Coffee Meetup",
+  "description": "Let's grab coffee and chat",
+  "category": 2,
+  "latitude": "40.712776",
+  "longitude": "-74.005974",
+  "location_name": "Starbucks Downtown",
+  "address": "123 Main St, New York, NY",
+  "start_time": "2025-12-07T09:00:00Z",
+  "end_time": "2025-12-07T10:30:00Z",
+  "max_participants": 4,
+  "visibility": "public",
+  "min_age": 18,
+  "requirements": "Bring your own mug if possible"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 15,
+  "creator": {
+    "id": 1,
+    "username": "johndoe",
+    "avatar": "..."
+  },
+  "title": "Morning Coffee Meetup",
+  "description": "Let's grab coffee and chat",
+  // ... full activity object
+}
+```
+
+---
+
+### Get Activity Details
+
+**GET** `/activities/{id}/`
+
+**Response:** `200 OK`
 ```json
 {
   "id": 1,
-  "user": 2,
-  "user_display_name": "Matthew",
-  "user_avatar": null,
-  "user_trust_score": "4.50",
+  "creator": { /* user object */ },
+  "title": "Evening Basketball Game",
+  "description": "...",
+  "category": { /* category object */ },
+  "participants": [
+    {
+      "id": 1,
+      "user": {
+        "id": 2,
+        "username": "janedoe",
+        "avatar": "..."
+      },
+      "status": "accepted",
+      "joined_at": "2025-12-05T14:00:00Z",
+      "checked_in_at": null
+    }
+  ],
+  // ... rest of activity fields
+}
+```
+
+---
+
+### Update Activity
+
+**PUT/PATCH** `/activities/{id}/`
+
+**Permissions:** Only the creator can update
+
+**Request Body:** (any fields to update)
+```json
+{
+  "title": "Updated Title",
+  "max_participants": 12
+}
+```
+
+**Response:** `200 OK` (updated activity object)
+
+---
+
+### Delete Activity
+
+**DELETE** `/activities/{id}/`
+
+**Permissions:** Only the creator can delete
+
+**Response:** `204 No Content`
+
+---
+
+### Get My Created Activities
+
+**GET** `/activities/mine/`
+
+**Response:** `200 OK` (paginated list of activities created by current user)
+
+---
+
+### Get My Participations
+
+**GET** `/activities/participating/`
+
+**Response:** `200 OK` (paginated list of activities where user is a participant)
+
+```json
+{
+  "count": 3,
+  "results": [
+    {
+      "activity": { /* full activity object */ },
+      "participation": {
+        "id": 5,
+        "status": "accepted",
+        "joined_at": "2025-12-05T14:00:00Z",
+        "checked_in_at": null,
+        "checked_out_at": null
+      }
+    }
+  ]
+}
+```
+
+---
+
+### Find Nearby Activities
+
+**GET** `/activities/nearby/`
+
+**Query Parameters:**
+- `latitude` (required) - Center latitude
+- `longitude` (required) - Center longitude
+- `radius` (optional, default: 10) - Search radius in kilometers
+- `category` (optional) - Filter by category ID
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "activity": { /* full activity object */ },
+    "distance_km": 1.2
+  },
+  {
+    "activity": { /* full activity object */ },
+    "distance_km": 3.5
+  }
+]
+```
+
+---
+
+### Join Activity
+
+**POST** `/activities/{activity_id}/join/`
+
+**Response:** `201 Created`
+```json
+{
+  "id": 8,
+  "activity": 1,
+  "user": {
+    "id": 3,
+    "username": "bobsmith"
+  },
   "status": "accepted",
-  "joined_at": "2025-12-05T15:00:00Z",
+  "joined_at": "2025-12-06T15:30:00Z",
   "checked_in_at": null
 }
 ```
 
-#### 5.5 Matthew Comments on the Activity
-**Endpoint:** `POST /api/activities/1/comments/`
+**Error Cases:**
+- `400` - Activity is full
+- `400` - User already joined
+- `403` - Activity is private/invite-only
 
-**Request:**
+---
+
+### Leave Activity
+
+**DELETE** `/activities/{activity_id}/leave/`
+
+**Response:** `204 No Content`
+
+**Error Cases:**
+- `404` - User is not a participant
+
+---
+
+### Check In to Activity
+
+**POST** `/activities/{activity_id}/checkin/`
+
+**Permissions:** User must be an accepted participant
+
+**Response:** `200 OK`
 ```json
 {
-  "content": "This sounds awesome! I'll bring some chips and guac 🥑"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "user": 2,
-  "user_display_name": "Matthew",
-  "user_avatar": null,
-  "content": "This sounds awesome! I'll bring some chips and guac 🥑",
-  "parent": null,
-  "replies": [],
-  "created_at": "2025-12-05T15:05:00Z"
+  "id": 8,
+  "status": "checked_in",
+  "checked_in_at": "2025-12-06T18:05:00Z"
 }
 ```
 
 ---
 
-### Journey Step 6: Matthew Sends Sarah a Friend Request
+### List Activity Comments
 
-#### 6.1 View Sarah's Public Profile
-**Endpoint:** `GET /api/users/1/`
+**GET** `/activities/{activity_id}/comments/`
 
-**Response:**
-```json
-{
-  "id": 1,
-  "username": "sarah_jane",
-  "display_name": "Sarah-Jane",
-  "bio": "Just moved to SF! Love hiking, picnics, and meeting new friends 🌸",
-  "avatar": null,
-  "trust_score": "0.00",
-  "total_reviews": 0,
-  "is_verified": false,
-  "personality_traits_list": [
-    {
-      "id": 1,
-      "trait": {"id": 1, "name": "Friendly", "icon": "😊", "color": "#22c55e"},
-      "prominence_score": 5
-    },
-    {
-      "id": 2,
-      "trait": {"id": 8, "name": "Outgoing", "icon": "🎉", "color": "#f97316"},
-      "prominence_score": 4
-    },
-    {
-      "id": 3,
-      "trait": {"id": 6, "name": "Foodie", "icon": "🍕", "color": "#ec4899"},
-      "prominence_score": 3
-    }
-  ]
-}
-```
-
-#### 6.2 Send Connection Request
-**Endpoint:** `POST /api/social/connections/request/`
-
-**Request:**
-```json
-{
-  "to_user_id": 1
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "from_user": 2,
-  "to_user": 1,
-  "from_user_detail": {
-    "id": 2,
-    "username": "matthew_m",
-    "display_name": "Matthew",
-    "trust_score": "4.50"
-  },
-  "to_user_detail": {
-    "id": 1,
-    "username": "sarah_jane",
-    "display_name": "Sarah-Jane"
-  },
-  "status": "pending",
-  "created_at": "2025-12-05T15:10:00Z"
-}
-```
-
----
-
-### Journey Step 7: Sarah Accepts the Friend Request
-
-#### 7.1 View Pending Requests
-**Endpoint:** `GET /api/social/connections/pending/`
-
-**Response:**
-```json
-{
-  "count": 1,
-  "results": [
-    {
-      "id": 1,
-      "from_user": 2,
-      "to_user": 1,
-      "from_user_detail": {
-        "id": 2,
-        "username": "matthew_m",
-        "display_name": "Matthew",
-        "bio": "Bay Area native, love board games and outdoor adventures",
-        "trust_score": "4.50",
-        "personality_traits_list": [
-          {"trait": {"name": "Nerdy", "icon": "🤓"}},
-          {"trait": {"name": "Friendly", "icon": "😊"}}
-        ]
-      },
-      "status": "pending",
-      "created_at": "2025-12-05T15:10:00Z"
-    }
-  ]
-}
-```
-
-#### 7.2 Accept the Request
-**Endpoint:** `POST /api/social/connections/1/accept/`
-
-**Response (200 OK):**
-```json
-{
-  "id": 1,
-  "from_user": 2,
-  "to_user": 1,
-  "status": "accepted",
-  "created_at": "2025-12-05T15:10:00Z",
-  "updated_at": "2025-12-05T15:15:00Z"
-}
-```
-
----
-
-### Journey Step 8: Sarah Messages Matthew
-
-#### 8.1 Send a Direct Message
-**Endpoint:** `POST /api/social/messages/send/`
-
-**Request:**
-```json
-{
-  "recipient": 2,
-  "content": "Hey Matthew! Thanks for joining the picnic! Looking forward to meeting you 😊"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 1,
-  "sender": 1,
-  "sender_display_name": "Sarah-Jane",
-  "sender_avatar": null,
-  "recipient": 2,
-  "content": "Hey Matthew! Thanks for joining the picnic! Looking forward to meeting you 😊",
-  "related_activity": null,
-  "is_read": false,
-  "read_at": null,
-  "sent_at": "2025-12-05T15:20:00Z"
-}
-```
-
-#### 8.2 Matthew Checks His Conversations
-**Endpoint:** `GET /api/social/messages/`
-
-**Response:**
+**Response:** `200 OK`
 ```json
 [
   {
-    "partner": {
-      "id": 1,
-      "username": "sarah_jane",
-      "display_name": "Sarah-Jane",
-      "avatar": null,
-      "trust_score": "0.00"
+    "id": 1,
+    "user": {
+      "id": 2,
+      "username": "janedoe",
+      "avatar": "..."
     },
-    "last_message": {
-      "id": 1,
-      "content": "Hey Matthew! Thanks for joining the picnic! Looking forward to meeting you 😊",
-      "is_read": false,
-      "sent_at": "2025-12-05T15:20:00Z"
-    },
-    "unread_count": 1
+    "content": "Can't wait for this!",
+    "parent": null,
+    "replies": [
+      {
+        "id": 2,
+        "user": {
+          "id": 1,
+          "username": "johndoe",
+          "avatar": "..."
+        },
+        "content": "Me too!",
+        "parent": 1,
+        "created_at": "2025-12-05T14:30:00Z"
+      }
+    ],
+    "created_at": "2025-12-05T14:00:00Z",
+    "updated_at": "2025-12-05T14:00:00Z"
   }
 ]
 ```
 
-#### 8.3 Matthew Views the Full Conversation
-**Endpoint:** `GET /api/social/messages/1/`
+---
 
-**Response:**
+### Create Activity Comment
+
+**POST** `/activities/{activity_id}/comments/`
+
+**Request Body:**
 ```json
 {
-  "count": 1,
+  "content": "Looking forward to it!",
+  "parent": null
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 3,
+  "user": { /* current user object */ },
+  "content": "Looking forward to it!",
+  "parent": null,
+  "created_at": "2025-12-06T10:00:00Z",
+  "updated_at": "2025-12-06T10:00:00Z"
+}
+```
+
+---
+
+## Location API
+
+### Update Location
+
+**POST** `/location/update/`
+
+**Request Body:**
+```json
+{
+  "latitude": "40.712776",
+  "longitude": "-74.005974",
+  "accuracy": 10.5,
+  "altitude": 15.0,
+  "current_activity": "Looking for lunch",
+  "is_visible": true
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 42,
+  "user": 1,
+  "latitude": "40.712776",
+  "longitude": "-74.005974",
+  "accuracy": 10.5,
+  "altitude": 15.0,
+  "is_current": true,
+  "is_visible": true,
+  "current_activity": "Looking for lunch",
+  "timestamp": "2025-12-06T12:30:00Z"
+}
+```
+
+---
+
+### Get Current Location
+
+**GET** `/location/current/`
+
+**Response:** `200 OK`
+```json
+{
+  "id": 42,
+  "user": 1,
+  "latitude": "40.712776",
+  "longitude": "-74.005974",
+  "accuracy": 10.5,
+  "altitude": 15.0,
+  "is_current": true,
+  "is_visible": true,
+  "current_activity": "Looking for lunch",
+  "timestamp": "2025-12-06T12:30:00Z"
+}
+```
+
+**Error Cases:**
+- `404` - No current location found
+
+---
+
+### Get Location History
+
+**GET** `/location/history/`
+
+**Query Parameters:**
+- `limit` (optional, default: 50) - Number of records to return
+
+**Response:** `200 OK`
+```json
+{
+  "count": 150,
   "results": [
     {
-      "id": 1,
-      "sender": 1,
-      "sender_display_name": "Sarah-Jane",
-      "content": "Hey Matthew! Thanks for joining the picnic! Looking forward to meeting you 😊",
-      "is_read": true,
-      "sent_at": "2025-12-05T15:20:00Z"
+      "id": 42,
+      "latitude": "40.712776",
+      "longitude": "-74.005974",
+      "accuracy": 10.5,
+      "is_current": false,
+      "timestamp": "2025-12-06T12:30:00Z"
     }
   ]
 }
@@ -671,242 +728,643 @@ Matthew is another user who lives nearby. He opens the app to find activities.
 
 ---
 
-### Journey Step 9: Day of the Picnic - Check In
+## Social API
 
-#### 9.1 Matthew Checks In to the Activity
-**Endpoint:** `POST /api/activities/1/checkin/`
+### Connections
 
-**Response (200 OK):**
+#### List All Connections
+
+**GET** `/social/connections/`
+
+**Query Parameters:**
+- `status` (optional) - Filter by status (`pending`, `accepted`, `declined`, `blocked`)
+
+**Response:** `200 OK`
 ```json
 {
-  "id": 1,
-  "user": 2,
-  "user_display_name": "Matthew",
-  "status": "checked_in",
-  "joined_at": "2025-12-05T15:00:00Z",
-  "checked_in_at": "2025-12-07T16:05:00Z"
+  "count": 25,
+  "results": [
+    {
+      "id": 1,
+      "from_user": {
+        "id": 1,
+        "username": "johndoe",
+        "avatar": "..."
+      },
+      "to_user": {
+        "id": 2,
+        "username": "janedoe",
+        "avatar": "..."
+      },
+      "status": "accepted",
+      "created_at": "2025-12-01T10:00:00Z",
+      "updated_at": "2025-12-01T10:30:00Z"
+    }
+  ]
 }
 ```
 
 ---
 
-### Journey Step 10: After the Picnic - Leave a Review
+#### Get Friends List
 
-#### 10.1 Matthew Reviews Sarah
-**Endpoint:** `POST /api/safety/reviews/create/`
+**GET** `/social/connections/friends/`
 
-**Request:**
+**Response:** `200 OK`
 ```json
 {
-  "reviewed_user": 1,
-  "activity": 1,
-  "rating": 5,
-  "safety_rating": 5,
-  "friendliness_rating": 5,
-  "reliability_rating": 5,
-  "comment": "Sarah was amazing! Super welcoming and made everyone feel included. The sandwiches were delicious too! Would definitely hang out again."
+  "count": 15,
+  "results": [
+    {
+      "id": 2,
+      "username": "janedoe",
+      "bio": "Coffee enthusiast",
+      "avatar": "...",
+      "friendship_since": "2025-12-01T10:30:00Z"
+    }
+  ]
 }
 ```
 
-**Response (201 Created):**
+---
+
+#### Get Pending Connection Requests
+
+**GET** `/social/connections/pending/`
+
+**Response:** `200 OK`
 ```json
 {
-  "id": 1,
-  "reviewer": 2,
-  "reviewer_detail": {
-    "id": 2,
-    "display_name": "Matthew"
+  "sent": [
+    {
+      "id": 5,
+      "to_user": {
+        "id": 10,
+        "username": "newuser",
+        "avatar": "..."
+      },
+      "status": "pending",
+      "created_at": "2025-12-06T09:00:00Z"
+    }
+  ],
+  "received": [
+    {
+      "id": 6,
+      "from_user": {
+        "id": 11,
+        "username": "anotheruser",
+        "avatar": "..."
+      },
+      "status": "pending",
+      "created_at": "2025-12-06T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Send Connection Request
+
+**POST** `/social/connections/request/`
+
+**Request Body:**
+```json
+{
+  "to_user": 10
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 7,
+  "from_user": {
+    "id": 1,
+    "username": "johndoe"
   },
-  "reviewed_user": 1,
-  "activity": 1,
+  "to_user": {
+    "id": 10,
+    "username": "newuser"
+  },
+  "status": "pending",
+  "created_at": "2025-12-06T12:00:00Z"
+}
+```
+
+**Error Cases:**
+- `400` - Connection already exists
+- `400` - Cannot send request to self
+- `400` - User is blocked
+
+---
+
+#### Accept Connection Request
+
+**POST** `/social/connections/{connection_id}/accept/`
+
+**Response:** `200 OK`
+```json
+{
+  "id": 6,
+  "status": "accepted",
+  "updated_at": "2025-12-06T12:30:00Z"
+}
+```
+
+**Error Cases:**
+- `403` - Can only accept requests sent to you
+- `404` - Connection not found
+
+---
+
+#### Decline Connection Request
+
+**POST** `/social/connections/{connection_id}/decline/`
+
+**Response:** `200 OK`
+```json
+{
+  "id": 6,
+  "status": "declined",
+  "updated_at": "2025-12-06T12:30:00Z"
+}
+```
+
+---
+
+#### Remove Connection (Unfriend)
+
+**DELETE** `/social/connections/{connection_id}/`
+
+**Response:** `204 No Content`
+
+---
+
+#### Block User
+
+**POST** `/social/block/{user_id}/`
+
+**Response:** `201 Created` or `200 OK`
+```json
+{
+  "id": 8,
+  "to_user": 12,
+  "status": "blocked",
+  "created_at": "2025-12-06T13:00:00Z"
+}
+```
+
+---
+
+### Messages
+
+#### List Conversations
+
+**GET** `/social/messages/`
+
+**Response:** `200 OK`
+```json
+{
+  "count": 5,
+  "results": [
+    {
+      "partner": {
+        "id": 2,
+        "username": "janedoe",
+        "avatar": "..."
+      },
+      "last_message": {
+        "id": 45,
+        "sender": 2,
+        "content": "See you tomorrow!",
+        "sent_at": "2025-12-06T11:00:00Z",
+        "is_read": true
+      },
+      "unread_count": 0
+    }
+  ]
+}
+```
+
+---
+
+#### Get Conversation with User
+
+**GET** `/social/messages/{user_id}/`
+
+**Query Parameters:**
+- `page` (optional) - Page number for pagination
+
+**Response:** `200 OK`
+```json
+{
+  "count": 50,
+  "results": [
+    {
+      "id": 44,
+      "sender": {
+        "id": 1,
+        "username": "johndoe"
+      },
+      "recipient": {
+        "id": 2,
+        "username": "janedoe"
+      },
+      "content": "Hey, how are you?",
+      "related_activity": null,
+      "is_read": true,
+      "read_at": "2025-12-06T10:30:00Z",
+      "sent_at": "2025-12-06T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Send Message
+
+**POST** `/social/messages/send/`
+
+**Request Body:**
+```json
+{
+  "recipient": 2,
+  "content": "Hey! Want to join the basketball game?",
+  "related_activity": 1
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 51,
+  "sender": {
+    "id": 1,
+    "username": "johndoe"
+  },
+  "recipient": {
+    "id": 2,
+    "username": "janedoe"
+  },
+  "content": "Hey! Want to join the basketball game?",
+  "related_activity": 1,
+  "is_read": false,
+  "read_at": null,
+  "sent_at": "2025-12-06T13:00:00Z"
+}
+```
+
+---
+
+#### Mark Messages as Read
+
+**POST** `/social/messages/{user_id}/read/`
+
+**Response:** `200 OK`
+```json
+{
+  "marked_read": 3
+}
+```
+
+---
+
+## Safety API
+
+### Reviews
+
+#### Get My Received Reviews
+
+**GET** `/safety/reviews/`
+
+**Response:** `200 OK`
+```json
+{
+  "count": 8,
+  "average_rating": 4.5,
+  "results": [
+    {
+      "id": 1,
+      "reviewer": {
+        "id": 2,
+        "username": "janedoe",
+        "avatar": "..."
+      },
+      "activity": {
+        "id": 5,
+        "title": "Evening Basketball Game"
+      },
+      "rating": 5,
+      "safety_rating": 5,
+      "friendliness_rating": 5,
+      "reliability_rating": 4,
+      "comment": "Great person to hang out with!",
+      "created_at": "2025-12-05T20:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Get Reviews for a User
+
+**GET** `/safety/reviews/user/{user_id}/`
+
+**Response:** `200 OK` (same format as above)
+
+---
+
+#### Create Review
+
+**POST** `/safety/reviews/create/`
+
+**Request Body:**
+```json
+{
+  "reviewed_user": 2,
+  "activity": 5,
   "rating": 5,
   "safety_rating": 5,
   "friendliness_rating": 5,
-  "reliability_rating": 5,
-  "comment": "Sarah was amazing! Super welcoming and made everyone feel included...",
-  "created_at": "2025-12-07T20:00:00Z"
+  "reliability_rating": 4,
+  "comment": "Great experience!"
 }
 ```
 
-> 💡 **Note:** Sarah's `trust_score` will automatically update to 5.00 based on this review!
+**Response:** `201 Created`
+```json
+{
+  "id": 12,
+  "reviewer": { /* current user */ },
+  "reviewed_user": { /* user object */ },
+  "activity": { /* activity object */ },
+  "rating": 5,
+  "safety_rating": 5,
+  "friendliness_rating": 5,
+  "reliability_rating": 4,
+  "comment": "Great experience!",
+  "created_at": "2025-12-06T15:00:00Z"
+}
+```
+
+**Error Cases:**
+- `400` - Cannot review yourself
+- `400` - Already reviewed this user for this activity
 
 ---
 
-## API Endpoints Reference
+### Reports
 
-### 🔐 Authentication
+#### Get My Submitted Reports
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register/` | Register new user |
-| POST | `/api/auth/login/` | Login, get JWT tokens |
-| POST | `/api/auth/refresh/` | Refresh access token |
-| POST | `/api/auth/verify/` | Verify token validity |
+**GET** `/safety/reports/`
 
-### 👤 Users
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/users/me/` | Get current user profile |
-| PATCH | `/api/users/me/` | Update current user profile |
-| GET | `/api/users/{id}/` | Get public profile of a user |
-| GET | `/api/users/me/preferences/` | Get user preferences |
-| PATCH | `/api/users/me/preferences/` | Update user preferences |
-| GET | `/api/users/me/traits/` | Get user's personality traits |
-| POST | `/api/users/me/traits/` | Add personality trait |
-| DELETE | `/api/users/me/traits/{trait_id}/` | Remove personality trait |
-| GET | `/api/users/nearby/` | Find nearby users |
-| GET | `/api/traits/` | List all personality traits |
-
-### 📍 Location
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/location/update/` | Update current location |
-| GET | `/api/location/current/` | Get current location |
-| GET | `/api/location/history/` | Get location history |
-
-### 🎯 Activities
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/activities/categories/` | List activity categories |
-| GET | `/api/activities/` | List all activities |
-| POST | `/api/activities/` | Create new activity |
-| GET | `/api/activities/{id}/` | Get activity details |
-| PATCH | `/api/activities/{id}/` | Update activity (creator only) |
-| DELETE | `/api/activities/{id}/` | Delete activity (creator only) |
-| GET | `/api/activities/mine/` | List my created activities |
-| GET | `/api/activities/participating/` | List activities I'm participating in |
-| GET | `/api/activities/nearby/` | Find nearby activities |
-| POST | `/api/activities/{id}/join/` | Join an activity |
-| POST | `/api/activities/{id}/leave/` | Leave an activity |
-| POST | `/api/activities/{id}/checkin/` | Check in to activity |
-| GET | `/api/activities/{id}/comments/` | Get activity comments |
-| POST | `/api/activities/{id}/comments/` | Add comment to activity |
-
-### 👥 Social (Connections & Messages)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/social/connections/` | List all connections |
-| GET | `/api/social/connections/friends/` | List accepted friends |
-| GET | `/api/social/connections/pending/` | List pending requests |
-| POST | `/api/social/connections/request/` | Send friend request |
-| POST | `/api/social/connections/{id}/accept/` | Accept friend request |
-| POST | `/api/social/connections/{id}/decline/` | Decline friend request |
-| DELETE | `/api/social/connections/{id}/` | Remove connection |
-| POST | `/api/social/block/{user_id}/` | Block a user |
-| GET | `/api/social/messages/` | List conversations |
-| POST | `/api/social/messages/send/` | Send a message |
-| GET | `/api/social/messages/{user_id}/` | Get conversation with user |
-| POST | `/api/social/messages/{user_id}/read/` | Mark messages as read |
-
-### 🛡️ Safety
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/safety/reviews/` | Get my received reviews |
-| GET | `/api/safety/reviews/user/{user_id}/` | Get reviews for a user |
-| POST | `/api/safety/reviews/create/` | Create a review |
-| GET | `/api/safety/reports/` | List my submitted reports |
-| POST | `/api/safety/reports/create/` | Submit a report |
-| GET | `/api/safety/verifications/` | List my verifications |
-| POST | `/api/safety/verifications/request/` | Request verification |
-| POST | `/api/safety/verifications/{id}/verify/` | Submit verification code |
-| GET | `/api/safety/emergency-contacts/` | List emergency contacts |
-| POST | `/api/safety/emergency-contacts/` | Add emergency contact |
-| GET | `/api/safety/emergency-contacts/{id}/` | Get emergency contact |
-| PATCH | `/api/safety/emergency-contacts/{id}/` | Update emergency contact |
-| DELETE | `/api/safety/emergency-contacts/{id}/` | Delete emergency contact |
+**Response:** `200 OK`
+```json
+{
+  "count": 2,
+  "results": [
+    {
+      "id": 1,
+      "reported_user": {
+        "id": 15,
+        "username": "baduser"
+      },
+      "reported_activity": {
+        "id": 20,
+        "title": "Suspicious Activity"
+      },
+      "reason": "harassment",
+      "description": "User was being inappropriate",
+      "status": "reviewing",
+      "created_at": "2025-12-05T16:00:00Z",
+      "updated_at": "2025-12-05T18:00:00Z"
+    }
+  ]
+}
+```
 
 ---
 
-## Data Models
+#### Create Report
 
-### User
+**POST** `/safety/reports/create/`
+
+**Request Body:**
 ```json
 {
-  "id": "integer",
-  "email": "string",
-  "username": "string",
-  "display_name": "string",
-  "bio": "string (max 500 chars)",
-  "avatar": "url",
-  "date_of_birth": "date",
-  "phone_number": "string",
-  "trust_score": "decimal (0.00-5.00)",
-  "total_reviews": "integer",
-  "is_verified": "boolean",
-  "is_email_verified": "boolean",
-  "is_phone_verified": "boolean",
-  "share_location": "boolean",
-  "location_visibility": "exact | approximate | hidden",
-  "personality_traits_list": "array",
-  "date_joined": "datetime"
+  "reported_user": 15,
+  "reported_activity": 20,
+  "reason": "harassment",
+  "description": "Detailed description of the incident..."
 }
 ```
 
-### Activity
+**Reason Options:**
+- `harassment`
+- `inappropriate`
+- `spam`
+- `fake`
+- `safety`
+- `scam`
+- `other`
+
+**Response:** `201 Created`
 ```json
 {
-  "id": "integer",
-  "title": "string (max 200 chars)",
-  "description": "string",
-  "category": "ActivityCategory object",
-  "latitude": "decimal",
-  "longitude": "decimal",
-  "location_name": "string",
-  "address": "string",
-  "start_time": "datetime",
-  "end_time": "datetime (optional)",
-  "max_participants": "integer",
-  "current_participants_count": "integer",
-  "spots_left": "integer",
-  "is_full": "boolean",
-  "visibility": "public | private | friends | invite",
-  "status": "active | completed | cancelled | full",
-  "min_age": "integer (optional)",
-  "min_trust_score": "decimal (0.00-5.00)",
-  "requirements": "string",
-  "cover_image": "url (optional)",
-  "creator": "integer (user id)",
-  "created_at": "datetime"
+  "id": 5,
+  "reporter": { /* current user */ },
+  "reported_user": { /* user object */ },
+  "reported_activity": { /* activity object */ },
+  "reason": "harassment",
+  "description": "Detailed description of the incident...",
+  "status": "pending",
+  "created_at": "2025-12-06T15:30:00Z"
 }
 ```
 
-### Connection
+---
+
+### Verifications
+
+#### Get My Verifications
+
+**GET** `/safety/verifications/`
+
+**Response:** `200 OK`
 ```json
 {
-  "id": "integer",
-  "from_user": "integer",
-  "to_user": "integer",
-  "status": "pending | accepted | declined | blocked",
-  "created_at": "datetime"
+  "count": 2,
+  "results": [
+    {
+      "id": 1,
+      "verification_type": "email",
+      "status": "verified",
+      "verified_at": "2025-12-01T10:00:00Z",
+      "created_at": "2025-12-01T09:30:00Z"
+    },
+    {
+      "id": 2,
+      "verification_type": "phone",
+      "status": "pending",
+      "verified_at": null,
+      "expires_at": "2025-12-06T16:00:00Z",
+      "created_at": "2025-12-06T15:00:00Z"
+    }
+  ]
 }
 ```
 
-### UserReview
+---
+
+#### Request Verification
+
+**POST** `/safety/verifications/request/`
+
+**Request Body:**
 ```json
 {
-  "id": "integer",
-  "reviewer": "integer (user id)",
-  "reviewed_user": "integer (user id)",
-  "activity": "integer (optional)",
-  "rating": "integer (1-5)",
-  "safety_rating": "integer (1-5, optional)",
-  "friendliness_rating": "integer (1-5, optional)",
-  "reliability_rating": "integer (1-5, optional)",
-  "comment": "string (max 1000 chars)",
-  "created_at": "datetime"
+  "verification_type": "phone"
 }
 ```
+
+**Verification Types:**
+- `email`
+- `phone`
+- `id`
+- `photo`
+
+**Response:** `201 Created`
+```json
+{
+  "id": 3,
+  "verification_type": "phone",
+  "status": "pending",
+  "expires_at": "2025-12-06T16:30:00Z",
+  "created_at": "2025-12-06T15:30:00Z",
+  "message": "Verification code sent to your phone"
+}
+```
+
+---
+
+#### Verify Code
+
+**POST** `/safety/verifications/{verification_id}/verify/`
+
+**Request Body:**
+```json
+{
+  "code": "123456"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 3,
+  "verification_type": "phone",
+  "status": "verified",
+  "verified_at": "2025-12-06T15:35:00Z"
+}
+```
+
+**Error Cases:**
+- `400` - Invalid or expired code
+- `404` - Verification not found
+
+---
+
+### Emergency Contacts
+
+#### List Emergency Contacts
+
+**GET** `/safety/emergency-contacts/`
+
+**Response:** `200 OK`
+```json
+{
+  "count": 2,
+  "results": [
+    {
+      "id": 1,
+      "name": "Mom",
+      "phone_number": "+1234567890",
+      "relationship": "Mother",
+      "notify_on_checkin": true,
+      "notify_on_activity_join": false,
+      "created_at": "2025-12-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Create Emergency Contact
+
+**POST** `/safety/emergency-contacts/`
+
+**Request Body:**
+```json
+{
+  "name": "Dad",
+  "phone_number": "+1987654321",
+  "relationship": "Father",
+  "notify_on_checkin": false,
+  "notify_on_activity_join": true
+}
+```
+
+**Response:** `201 Created`
+
+---
+
+#### Update Emergency Contact
+
+**PUT/PATCH** `/safety/emergency-contacts/{id}/`
+
+**Request Body:** (any fields to update)
+
+**Response:** `200 OK` (updated contact object)
+
+---
+
+#### Delete Emergency Contact
+
+**DELETE** `/safety/emergency-contacts/{id}/`
+
+**Response:** `204 No Content`
 
 ---
 
 ## Error Handling
 
-### Common Error Responses
+### Error Response Format
+
+```json
+{
+  "detail": "Error message describing what went wrong"
+}
+```
+
+### Validation Errors (400 Bad Request)
+
+```json
+{
+  "field_name": [
+    "Error message for this field"
+  ],
+  "another_field": [
+    "Another error message"
+  ]
+}
+```
+
+### Common Error Messages
 
 **401 Unauthorized:**
 ```json
@@ -915,10 +1373,24 @@ Matthew is another user who lives nearby. He opens the app to find activities.
 }
 ```
 
+```json
+{
+  "detail": "Given token not valid for any token type",
+  "code": "token_not_valid",
+  "messages": [
+    {
+      "token_class": "AccessToken",
+      "token_type": "access",
+      "message": "Token is invalid or expired"
+    }
+  ]
+}
+```
+
 **403 Forbidden:**
 ```json
 {
-  "error": "Only the creator can edit this activity"
+  "detail": "You do not have permission to perform this action."
 }
 ```
 
@@ -929,50 +1401,55 @@ Matthew is another user who lives nearby. He opens the app to find activities.
 }
 ```
 
-**400 Bad Request:**
-```json
-{
-  "email": ["User with this email already exists."],
-  "password": ["This field is required."]
-}
+---
+
+## Pagination
+
+Default page size: 20 items
+
+Custom page size (max 100):
+```
+GET /api/endpoint/?page_size=50
+```
+
+Navigate pages:
+```
+GET /api/endpoint/?page=2
 ```
 
 ---
 
-## Testing with cURL
+## Filtering & Ordering
 
-### Quick Test Commands
+Most list endpoints support filtering and ordering via query parameters:
 
-```bash
-# 1. Register
-curl -X POST http://localhost:8000/api/auth/register/ \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","username":"testuser","password":"test1234","password_confirm":"test1234"}'
-
-# 2. Login (save the access token)
-curl -X POST http://localhost:8000/api/auth/login/ \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"test1234"}'
-
-# 3. Use the token for authenticated requests
-TOKEN="your_access_token_here"
-
-curl http://localhost:8000/api/users/me/ \
-  -H "Authorization: Bearer $TOKEN"
-
-curl http://localhost:8000/api/activities/categories/ \
-  -H "Authorization: Bearer $TOKEN"
-
-curl http://localhost:8000/api/traits/ \
-  -H "Authorization: Bearer $TOKEN"
 ```
+GET /api/activities/?category=1&status=active&ordering=-start_time
+```
+
+Common ordering fields:
+- `-created_at` (newest first)
+- `created_at` (oldest first)
+- `-start_time` (activities)
+- `distance_km` (nearby queries)
 
 ---
 
-## 📱 Interactive API Documentation
+## Rate Limiting
 
-Visit `http://localhost:8000/api/docs/` for the interactive Swagger UI where you can:
-1. Try all endpoints
-2. Authenticate with JWT tokens
-3. See request/response schemas
-4. Test the complete user flow
+*Not currently implemented - planned for production*
+
+Future limits:
+- 100 requests per minute per user
+- 1000 requests per hour per user
+
+---
+
+## Webhooks
+
+*Not currently available - planned for future versions*
+
+---
+
+**Last Updated:** December 6, 2025  
+**API Version:** 1.0

@@ -1,228 +1,303 @@
-# GitHub Copilot Instructions - Social Activity Finder
+# GitHub Copilot Instructions - Social Activity Finder Backend
 
 ## Project Overview
 
-**Social Activity Finder** is a location-based social networking app connecting people through real-time activities. Built with Django REST Framework backend + Expo React Native frontend.
+**Social Activity Finder** is a location-based social networking Django REST API backend for connecting people through real-time activities.
 
-- **Backend**: Django 5.0.9, DRF, JWT auth, PostgreSQL/SQLite
-- **Frontend**: Expo Router (file-based routing), Zustand state management, React Query, TypeScript
-- **Key Features**: Activity creation/discovery, friend connections, personality matching, safety features, real-time location tracking
+- **Stack**: Django 5.0.9, DRF 3.15, JWT auth (simplejwt), PostgreSQL/SQLite
+- **Architecture**: Monorepo with 5 Django apps following single-responsibility pattern
+- **Key Features**: Activity CRUD, friend connections, location tracking, safety/reviews, real-time messaging
 
-## Architecture
+## Architecture Overview
 
-### Monorepo Structure
+### 5-App Domain Model
+
+**Critical**: Each app owns ONE domain concept with strict boundaries:
+
+1. **users** (`apps/users/`) - Custom User model (email auth), user discovery
+2. **activities** (`apps/activities/`) - Activity lifecycle, categories, participants, comments
+3. **locations** (`apps/locations/`) - User location tracking with PostGIS support
+4. **social** (`apps/social/`) - Friend connections (pending/accepted/blocked), direct messaging
+5. **safety** (`apps/safety/`) - User reviews, reports, emergency contacts, verification
+
+**Standard app structure** (strictly followed):
 ```
-mlh-project/
-├── backend/         # Django REST API
-│   ├── config/      # Django settings (settings.py, urls.py)
-│   └── apps/        # 5 Django apps (users, activities, locations, social, safety)
-├── sample/          # Sample Expo frontend
-└── frontend/        # Primary Expo app to be developed after sample
-```
-
-### Backend: 5 Django Apps Pattern
-
-Each app follows the same structure with clear separation of concerns:
-- `models.py` - Database models
-- `serializers.py` - DRF serializers for API responses
-- `views.py` - Class-based views (generics.ListAPIView, APIView)
-- `urls.py` - App-specific URL patterns
-- `admin.py` - Django admin configuration
-
-**Apps & Their Responsibilities:**
-1. **users** - Custom User model (email auth), personality traits, preferences, nearby user discovery
-2. **activities** - Activity CRUD, categories, participants, comments, check-in/out
-3. **locations** - User location tracking with PostGIS support
-4. **social** - Friend connections (pending/accepted/blocked), direct messaging
-5. **safety** - User reviews, reports, emergency contacts, verification
-
-### Frontend: Expo Router File-Based Routing
-
-```
-sample/app/
-├── _layout.tsx           # Root layout with auth protection
-├── login.tsx             # Auth screens (not in tabs)
-├── register.tsx
-├── (tabs)/              # Tab navigation group
-│   ├── _layout.tsx      # Bottom tabs config
-│   ├── index.tsx        # Home/Map screen
-│   ├── activities.tsx   # Activity list
-│   └── profile.tsx      # User profile
-└── activity/[id].tsx    # Dynamic route for activity details
+apps/<domain>/
+├── models.py       # Django ORM models
+├── serializers.py  # DRF serializers (validation + API representation)
+├── views.py        # Class-based views (NOT ViewSets)
+├── urls.py         # App-specific URL patterns
+└── admin.py        # Django admin registration
 ```
 
-**Key Pattern**: `useProtectedRoute()` in `_layout.tsx` redirects unauthenticated users to `/login` automatically.
+### URL Routing Pattern
 
-### State Management
+**All API endpoints** nest under `/api/` via `apps/api/urls.py`:
 
-- **Zustand stores** in `sample/src/store/`:
-  - `authStore.ts` - User auth state, login/logout, token management
-  - Each store is simple: state + actions, no complex middleware
-  
-- **React Query** for server state:
-  - API calls in `sample/src/api/` (e.g., `authApi.ts`, `activitiesApi.ts`)
-  - Queries/mutations managed per screen, not in stores
-
-### API Client Pattern
-
-`sample/src/api/client.ts` provides:
-- Axios instance with JWT token interceptor
-- Automatic token refresh on 401 errors with request queue
-- Platform-aware storage (SecureStore on native, localStorage on web)
-- Base URL: `http://localhost:8000/api/v1`
-
-**Example usage:**
-```typescript
-// In any API file
-import { apiClient } from './client';
-
-export const activitiesApi = {
-  getActivities: () => apiClient.get('/activities/'),
-  createActivity: (data) => apiClient.post('/activities/', data),
-};
+```python
+# config/urls.py → apps/api/urls.py → apps/<domain>/urls.py
+# Result: /api/activities/, /api/social/friends/, etc.
 ```
+
+**Example**: Activity endpoints in `apps/activities/urls.py`:
+- `/api/activities/` → ActivityListCreateView
+- `/api/activities/<id>/` → ActivityDetailView
+- `/api/activities/<id>/join/` → custom action view
+
+**Auth endpoints** live in `apps/api/urls.py` directly:
+- `/api/auth/login/` → TokenObtainPairView (simplejwt)
+- `/api/auth/register/` → UserRegistrationView
 
 ## Development Workflows
 
-### Backend Setup
+### Initial Setup
 
 ```bash
 cd backend
 python3 -m venv venv
-source venv/bin/activate  # or .\venv\Scripts\activate on Windows
+source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py createsuperuser
+```
+
+### Environment Configuration
+
+Create `.env` in `backend/` (required for settings.py):
+```env
+SECRET_KEY=your-secret-key
+DEBUG=True
+USE_POSTGRES=False  # True for PostgreSQL, False for SQLite
+CORS_ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19000
+```
+
+**Database switching**: `USE_POSTGRES=False` uses SQLite (`db.sqlite3`), no setup needed.
+
+### Seeding Data
+
+**Must run AFTER migrations**:
+```bash
+python manage.py shell
+>>> exec(open('seed_data.py').read())
+>>> seed_all()  # Creates ActivityCategories
+```
+
+**Verify**: Check `http://localhost:8000/admin/` → Activity Categories
+
+### Running Development Server
+
+```bash
 python manage.py runserver  # http://localhost:8000
 ```
 
-**Seed initial data:**
+**Key URLs**:
+- Admin: `http://localhost:8000/admin/`
+- API Docs (Swagger): `http://localhost:8000/api/docs/`
+- OpenAPI Schema: `http://localhost:8000/api/schema/`
+
+### Testing Workflow
+
+**Pytest configured** in `conftest.py` with fixtures:
+```bash
+pytest                    # Run all tests
+pytest apps/users/        # Test specific app
+pytest -v --tb=short      # Verbose with short tracebacks
+```
+
+**Common fixture** (`conftest.py`):
 ```python
-python manage.py shell
->>> exec(open('seed_data.py').read())
->>> seed_all()
+@pytest.fixture
+def create_user(db, user_data):
+    def make_user(**kwargs):
+        return User.objects.create_user(**kwargs)
+    return make_user
 ```
-
-**Key environment variables** (`.env`):
-- `DEBUG=True` for development
-- `USE_POSTGRES=False` to use SQLite locally
-- `CORS_ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19000`
-
-### Frontend Setup
-
-```bash
-cd sample
-npm install
-npx expo start
-# Press 'i' for iOS simulator, 'a' for Android emulator, 'w' for web
-```
-
-**Clear cache if dependencies change:**
-```bash
-npx expo start --clear
-```
-
-### Testing API
-
-- **Admin Panel**: http://localhost:8000/admin/
-- **API Docs**: http://localhost:8000/api/docs/ (DRF Spectacular)
-- **Manual Testing**: Use Postman/curl with JWT tokens from login response
 
 ## Code Conventions
 
-### Backend
+### Views: Generic Class-Based Views (NOT ViewSets)
 
-**ViewSets vs Class-Based Views**: This project uses **class-based generic views** (not ViewSets).
-- List: `generics.ListAPIView`
-- Create: `generics.CreateAPIView`
-- Retrieve/Update: `generics.RetrieveUpdateAPIView`
-- Custom logic: `APIView` with explicit methods
+**Critical**: This project uses **DRF generic views**, NOT `ModelViewSet` or `ViewSet`.
 
-**Example from `backend/apps/activities/views.py`:**
+**Pattern**: Use generic base classes for standard CRUD:
 ```python
+from rest_framework import generics, permissions
+
 class ActivityListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_serializer_class(self):
+        # Dynamic serializer based on request method
         if self.request.method == 'POST':
             return ActivityCreateSerializer
         return ActivityListSerializer
+    
+    def get_queryset(self):
+        # Custom filtering logic
+        return Activity.objects.filter(status='active')
 ```
 
-**URL patterns** are nested under `/api/v1/` in `config/urls.py`:
+**For custom actions**, use `APIView`:
 ```python
-urlpatterns = [
-    path('api/v1/auth/', include('apps.users.urls')),
-    path('api/v1/activities/', include('apps.activities.urls')),
-    # ...
-]
+class ActivityJoinView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, id):
+        # Custom logic here
+        return Response(data, status=status.HTTP_200_OK)
 ```
 
-### Frontend
+### Model Patterns
 
-**Import aliases** configured in `tsconfig.json`:
-```typescript
-import { useAuthStore } from '@/src/store/authStore';  // @ = root
-import Colors from '@/constants/Colors';
+**User model** (`apps/users/models.py`) extends `AbstractUser`:
+```python
+class User(AbstractUser):
+    email = models.EmailField(unique=True)
+    bio = models.TextField(max_length=500, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    
+    USERNAME_FIELD = 'email'  # Login with email, not username
+    REQUIRED_FIELDS = ['username']
 ```
 
-**Component patterns**:
-- Use functional components with TypeScript
-- Extract reusable components to `components/` (e.g., `ActivityCard.tsx`)
-- Keep screen logic in `app/` route files
+**Foreign key pattern** - Always use `settings.AUTH_USER_MODEL`:
+```python
+from django.conf import settings
 
-**Styling**: Uses React Native Paper for UI components + inline StyleSheet.create
+creator = models.ForeignKey(
+    settings.AUTH_USER_MODEL,  # NOT 'User' directly
+    on_delete=models.CASCADE,
+    related_name='created_activities'
+)
+```
+
+**Choice fields** - Use `TextChoices`:
+```python
+class StatusChoices(models.TextChoices):
+    ACTIVE = 'active', 'Active'
+    COMPLETED = 'completed', 'Completed'
+
+status = models.CharField(
+    max_length=20,
+    choices=StatusChoices.choices,
+    default=StatusChoices.ACTIVE
+)
+```
+
+### Serializer Patterns
+
+**Dynamic serializers**: Different serializers for list vs detail:
+```python
+# List view - minimal fields
+class ActivityListSerializer(serializers.ModelSerializer):
+    creator = UserPublicSerializer(read_only=True)
+    participant_count = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = Activity
+        fields = ['id', 'title', 'creator', 'participant_count']
+
+# Create/Update - validation + writable fields
+class ActivityCreateSerializer(serializers.ModelSerializer):
+    def validate_max_participants(self, value):
+        if value < 2:
+            raise serializers.ValidationError("Must allow at least 2 participants")
+        return value
+```
+
+**Nested writes**: Set creator from request user:
+```python
+def perform_create(self, serializer):
+    serializer.save(creator=self.request.user)
+```
 
 ## Critical Integration Points
 
 ### Authentication Flow
-1. User registers → `POST /api/v1/auth/register/`
-2. User logs in → `POST /api/v1/auth/login/` returns `{access, refresh}` tokens
-3. Tokens stored via `tokenStorage.setTokens()` (SecureStore/localStorage)
-4. `apiClient` adds `Authorization: Bearer <token>` to all requests
-5. On 401, auto-refresh token, retry request, or logout if refresh fails
 
-### Location Tracking
-- `expo-location` requests permissions on first use
-- Current location stored in Zustand, sent to `POST /api/v1/locations/update-location/`
-- Backend uses PostGIS (optional) or lat/lon fields for spatial queries
+**JWT tokens** via `djangorestframework-simplejwt`:
+1. Login: `POST /api/auth/login/` → `{access: "...", refresh: "..."}`
+2. Requests: `Authorization: Bearer <access_token>` header
+3. Refresh: `POST /api/auth/refresh/` with `{refresh: "..."}` → new access token
+4. Verify: `POST /api/auth/verify/` with `{token: "..."}`
 
-### Activity Discovery
-- Home screen (`(tabs)/index.tsx`) shows map with activity markers
-- Filters: category, distance radius, date range via query params
-- Join activity: `POST /api/v1/activities/{id}/join/`
-- Leave: `DELETE /api/v1/activities/{id}/leave/`
+**Token expiry** (from `config/settings.py`):
+- Access tokens: 5 minutes
+- Refresh tokens: 1 day
 
-## Common Gotchas
+**Protected endpoints**: Add `permission_classes = [permissions.IsAuthenticated]`
 
-- **API URL mismatch**: Frontend uses `http://localhost:8000/api/v1`, ensure backend CORS allows it
-- **Token expiry**: Access tokens expire in 5 minutes, refresh tokens in 1 day (see `config/settings.py` JWT config)
-- **Expo Router**: File moves require Metro cache clear (`npx expo start --clear`)
-- **SecureStore on web**: Falls back to localStorage, may lose session on refresh in dev
-- **Migration conflicts**: Run `python manage.py migrate --fake` if seed data conflicts with existing DB
+### Location Tracking Architecture
 
-## Documentation References
+**Pattern**: Frontend periodically POSTs location → Backend stores in `UserLocation` model
+- Update: `POST /api/location/update-location/` with `{latitude, longitude}`
+- Nearby users: Haversine formula query in `apps/locations/models.py`
+- **PostGIS optional**: Falls back to simple lat/lon decimal fields
 
-- **Backend API**: `backend/API_DOCUMENTATION.md` - Full endpoint reference with examples
-- **Database Models**: `backend/MODELS_DOCUMENTATION.md` - Complete schema with relationships
-- **Expo Setup**: `EXPO_SETUP.md` - Initial project creation steps
-- **TODO List**: `TODO.md` - Prioritized feature backlog (P0 = critical for MVP)
+### Activity Participation Flow
+
+**Join activity**:
+1. `POST /api/activities/<id>/join/` creates `ActivityParticipant` record
+2. View checks: activity not full, not already joined, not creator
+3. Updates activity status to 'full' if max_participants reached
+
+**Leave activity**:
+1. `DELETE /api/activities/<id>/leave/` removes participant
+2. Updates status back to 'active' if was 'full'
+
+## Common Gotchas & Solutions
+
+### Migration Issues
+- **Conflict after seed**: `python manage.py migrate --fake-zero <app>` then `migrate` again
+- **SQLite locked**: Close all Django shell sessions before migrating
+- **Fresh start**: Delete `db.sqlite3` + all `*/migrations/` (except `__init__.py`)
+
+### CORS Configuration
+- **Frontend connection fails**: Check `CORS_ALLOWED_ORIGINS` in `.env` includes frontend URL
+- **Default**: `http://localhost:8081,http://localhost:19000` (Expo dev server ports)
+
+### Authentication Debugging
+- **401 errors**: Check token in request: `curl -H "Authorization: Bearer <token>" <url>`
+- **Token expired**: Tokens expire fast in dev - use refresh endpoint
+- **Admin login**: Superuser uses username, API uses email
+
+### Query Performance
+- **N+1 queries**: Use `select_related()` for ForeignKey, `prefetch_related()` for ManyToMany
+- **Example**: `Activity.objects.select_related('creator', 'category').all()`
+- **Debug**: Enable `django-debug-toolbar` in dev (already in `INSTALLED_APPS` if `DEBUG=True`)
 
 ## Adding New Features
 
 ### Backend: New API Endpoint
 1. Define model in `apps/<app>/models.py`
-2. Create serializer in `serializers.py`
-3. Add view in `views.py` (use appropriate generic class)
-4. Register URL in `urls.py`
+2. Create serializer in `serializers.py` with appropriate fields
+3. Add view in `views.py` using generic class (ListAPIView, CreateAPIView, etc.)
+4. Register URL pattern in `urls.py` with descriptive name
 5. Run `python manage.py makemigrations && python manage.py migrate`
+6. Test via admin panel or API docs at `/api/docs/`
 
-### Frontend: New Screen
-1. Create file in `app/` (e.g., `app/settings.tsx` for `/settings` route)
-2. Add navigation link in appropriate tab layout or component
-3. Create API functions in `src/api/` if server calls needed
-4. Use React Query for data fetching: `useQuery(['key'], apiCall)`
+**Example workflow**:
+```bash
+# 1. Add model field
+python manage.py makemigrations apps.activities
+python manage.py migrate
+
+# 2. Update serializer to expose new field
+# 3. Test in Django shell
+python manage.py shell
+>>> from apps.activities.models import Activity
+>>> Activity.objects.all()
+
+# 4. Verify in API docs
+open http://localhost:8000/api/docs/
+```
+
+## Reference Documentation
+
+- **API Endpoints**: `backend/API_DOCUMENTATION.md` - Complete endpoint reference with request/response examples
+- **Database Schema**: `backend/MODELS_DOCUMENTATION.md` - All models, fields, and relationships
+- **Feature Backlog**: `TODO.md` - Prioritized tasks (P0 = MVP critical, P1 = important, P2/P3 = future)
 
 ---
 
-**When in doubt**: Check existing patterns in similar components. This codebase prioritizes consistency over cleverness.
+**Philosophy**: This codebase prioritizes **explicit over implicit** and **consistency over cleverness**. When implementing new features, follow existing patterns in similar components rather than introducing new approaches.

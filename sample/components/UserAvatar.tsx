@@ -3,12 +3,12 @@ import type { User } from '@/src/types';
 import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
 import {
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    View,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useColorScheme,
+  View,
 } from 'react-native';
 
 interface UserAvatarProps {
@@ -45,11 +45,14 @@ export default function UserAvatar({
     if (user.first_name && user.last_name) {
       return `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase();
     }
-    return user.username.charAt(0).toUpperCase();
+    if (user.username) {
+      return user.username.charAt(0).toUpperCase();
+    }
+    return '?';
   };
 
   const getDisplayName = () => {
-    return user.display_name || user.first_name || user.username;
+    return user.display_name || user.first_name || user.username || 'User';
   };
 
   const avatarContent = user.avatar ? (

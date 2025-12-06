@@ -3,27 +3,29 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
-import activitiesAPI from '@/src/api/endpoints/activities';
-import { ActivityCategory, CreateActivityRequest } from '@/src/types';
+import activitiesApi, { CreateActivityData } from '@/src/api/endpoints/activities';
+import { useAuth } from '@/src/hooks';
+import { ActivityCategory } from '@/src/types';
 
 export default function CreateActivityScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
+  const { isAuthenticated, user } = useAuth();
   
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<ActivityCategory[]>([]);
@@ -47,7 +49,7 @@ export default function CreateActivityScreen() {
 
   const loadCategories = async () => {
     try {
-      const data = await activitiesAPI.getCategories();
+      const data = await activitiesApi.getCategories();
       // Handle both array and paginated response
       const categoriesArray = Array.isArray(data) ? data : ((data as any).results || []);
       setCategories(categoriesArray);
@@ -68,65 +70,103 @@ export default function CreateActivityScreen() {
   };
 
   const validateForm = () => {
+    console.log('Validating form:', {
+      title,
+      selectedCategory,
+      locationName,
+      address,
+      scheduledTime,
+      duration,
+      maxParticipants
+    });
+    
     if (!title.trim()) {
+      console.log('Validation failed: No title');
       Alert.alert('Error', 'Please enter an activity title');
       return false;
     }
     if (!selectedCategory) {
+      console.log('Validation failed: No category');
       Alert.alert('Error', 'Please select a category');
       return false;
     }
     if (!locationName.trim()) {
+      console.log('Validation failed: No location name');
       Alert.alert('Error', 'Please enter a location name');
       return false;
     }
     if (!address.trim()) {
+      console.log('Validation failed: No address');
       Alert.alert('Error', 'Please enter an address');
       return false;
     }
     if (scheduledTime < new Date()) {
+      console.log('Validation failed: Time is in the past');
       Alert.alert('Error', 'Please select a future date and time');
       return false;
     }
     const durationNum = parseInt(duration);
     if (isNaN(durationNum) || durationNum < 15 || durationNum > 480) {
+      console.log('Validation failed: Invalid duration', duration);
       Alert.alert('Error', 'Duration must be between 15 and 480 minutes');
       return false;
     }
     const maxNum = parseInt(maxParticipants);
     if (isNaN(maxNum) || maxNum < 2 || maxNum > 100) {
+      console.log('Validation failed: Invalid max participants', maxParticipants);
       Alert.alert('Error', 'Max participants must be between 2 and 100');
       return false;
     }
+    console.log('Validation passed!');
     return true;
   };
 
   const handleCreate = async () => {
-    if (!validateForm()) return;
+    console.log('handleCreate called');
+    console.log('Is authenticated:', isAuthenticated);
+    console.log('User:', user);
+    
+    if (!isAuthenticated) {
+      Alert.alert('Error', 'You must be logged in to create an activity');
+      router.push('/login');
+      return;
+    }
+    
+    if (!validateForm()) {
+      console.log('Validation failed');
+      return;
+    }
 
+    console.log('Starting activity creation...');
     setIsLoading(true);
     try {
-      const activityData: CreateActivityRequest = {
+      // Calculate end_time from scheduled_time and duration
+      const endTime = new Date(scheduledTime.getTime() + parseInt(duration) * 60000);
+      
+      const activityData: CreateActivityData = {
         title: title.trim(),
         description: description.trim(),
-        category: selectedCategory!,
+        category_id: selectedCategory!,
         location_name: locationName.trim(),
         address: address.trim(),
         latitude: 40.7128, // Mock location - would use actual location picker
         longitude: -74.0060,
-        scheduled_time: scheduledTime.toISOString(),
-        duration_minutes: parseInt(duration),
+        start_time: scheduledTime.toISOString(),
+        end_time: endTime.toISOString(),
         max_participants: parseInt(maxParticipants),
-        is_private: isPrivate,
+        visibility: isPrivate ? 'private' : 'public',
       };
 
-      const activity = await activitiesAPI.createActivity(activityData);
+      console.log('Activity data:', activityData);
+      const activity = await activitiesApi.createActivity(activityData);
+      console.log('Activity created:', activity);
       Alert.alert('Success', 'Activity created successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error: any) {
       console.error('Failed to create activity:', error);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to create activity. Please try again.');
+      console.error('Error response:', error.response?.data);
+      Alert.alert('Error', error.response?.data?.detail || error.message || 'Failed to create activity. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -458,8 +498,12 @@ export default function CreateActivityScreen() {
           {/* Create Button */}
           <TouchableOpacity
             style={[styles.createButton, { opacity: isLoading ? 0.7 : 1 }]}
-            onPress={handleCreate}
+            onPress={() => {
+              console.log('Button pressed!');
+              handleCreate();
+            }}
             disabled={isLoading}
+            activeOpacity={0.7}
           >
             {isLoading ? (
               <ActivityIndicator color="#ffffff" />
@@ -614,7 +658,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     marginTop: 32,
+    marginBottom: 20,
     gap: 10,
+    zIndex: 1,
   },
   createButtonText: {
     color: '#ffffff',
