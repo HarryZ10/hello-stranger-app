@@ -2,14 +2,15 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -111,21 +112,28 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/login');
-          }
-        },
-      ]
-    );
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to logout?')) {
+        logout();
+        router.replace('/login');
+      }
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Logout', 
+            style: 'destructive',
+            onPress: async () => {
+              await logout();
+              router.replace('/login');
+            }
+          },
+        ]
+      );
+    }
   };
 
   const getVerificationStatus = () => {
