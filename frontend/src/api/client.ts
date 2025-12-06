@@ -3,8 +3,8 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 // Allow override from env at build time (Expo env vars must be prefixed with EXPO_PUBLIC_)
-const ENV_BACKEND_HOST = process.env.EXPO_PUBLIC_BACKEND_HOST;
-const ENV_BACKEND_PORT = process.env.EXPO_PUBLIC_BACKEND_PORT;
+const ENV_BACKEND_HOST = process.env.EXPO_PUBLIC_BACKEND_HOST || 'mlh-project-production.up.railway.app'
+const ENV_BACKEND_PORT = process.env.EXPO_PUBLIC_BACKEND_PORT || '8000';
 
 // Resolve host by priority: env → Expo dev host IP → platform fallback
 const resolveHost = () => {
@@ -46,7 +46,7 @@ const resolvePort = () => {
 const getAPIBaseURL = () => {
   const port = resolvePort();
   const host = resolveHost();
-  return `http://${host}:${port}/api`;
+  return `https://${host}/api`;
 };
 
 const API_BASE_URL = getAPIBaseURL();

@@ -4,17 +4,17 @@ import { FontAwesome } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useColorScheme,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  View,
 } from 'react-native';
 
 export default function RegisterScreen() {
@@ -29,32 +29,55 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleRegister = async () => {
+    console.log('Register button clicked');
+    
     if (!username.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      if (Platform.OS === 'web') {
+        alert('Please fill in all fields');
+      } else {
+        Alert.alert('Error', 'Please fill in all fields');
+      }
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      if (Platform.OS === 'web') {
+        alert('Passwords do not match');
+      } else {
+        Alert.alert('Error', 'Passwords do not match');
+      }
       return;
     }
 
     if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      if (Platform.OS === 'web') {
+        alert('Password must be at least 8 characters');
+      } else {
+        Alert.alert('Error', 'Password must be at least 8 characters');
+      }
       return;
     }
 
     try {
+      console.log('Attempting to register:', { username: username.trim(), email: email.trim() });
       await register({
         username: username.trim(),
         email: email.trim(),
         password,
       });
-      Alert.alert('Success', 'Account created! Please sign in.', [
-        { text: 'OK', onPress: () => router.replace('/login') },
-      ]);
-    } catch (err) {
-      // Error is handled by the auth store
+      console.log('Registration successful');
+      
+      if (Platform.OS === 'web') {
+        alert('Account created! Please sign in.');
+        router.replace('/login');
+      } else {
+        Alert.alert('Success', 'Account created! Please sign in.', [
+          { text: 'OK', onPress: () => router.replace('/login') },
+        ]);
+      }
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      // Error is handled by the auth store and displayed in the error container
     }
   };
 
@@ -301,6 +324,7 @@ export default function RegisterScreen() {
             style={[styles.button, isLoading && styles.buttonDisabled]}
             onPress={handleRegister}
             disabled={isLoading}
+            activeOpacity={0.8}
           >
             {isLoading ? (
               <ActivityIndicator color={theme.colors.white} />
@@ -411,9 +435,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 50,
     marginTop: theme.spacing.md,
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer' as any,
+      userSelect: 'none' as any,
+    }),
   },
   buttonDisabled: {
     opacity: 0.7,
+    ...(Platform.OS === 'web' && {
+      cursor: 'not-allowed' as any,
+    }),
   },
   buttonText: {
     color: theme.colors.white,
