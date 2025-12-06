@@ -1,7 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// Cross-platform alert helper
+const showAlert = (title: string, message: string, buttons?: Array<{text: string, onPress?: () => void, style?: string}>) => {
+  if (Platform.OS === 'web') {
+    // For web, use window.alert with combined message
+    const alertMessage = `${title}\n\n${message}`;
+    window.alert(alertMessage);
+    // Execute the first button's onPress if exists
+    if (buttons && buttons.length > 0 && buttons[0].onPress) {
+      buttons[0].onPress();
+    }
+  } else {
+    // For native, use Alert.alert
+    Alert.alert(title, message, buttons);
+  }
+};
+
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import activitiesApi, { CreateActivityData } from '@/src/api/endpoints/activities';
@@ -23,9 +39,12 @@ import { useAuth } from '@/src/hooks';
 import { ActivityCategory } from '@/src/types';
 
 export default function CreateActivityScreen() {
+  console.log('CreateActivityScreen rendered');
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
+  
+  console.log('Auth state:', { isAuthenticated, user });
   
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<ActivityCategory[]>([]);
@@ -69,78 +88,155 @@ export default function CreateActivityScreen() {
     }
   };
 
-  const validateForm = () => {
-    console.log('Validating form:', {
-      title,
-      selectedCategory,
-      locationName,
-      address,
-      scheduledTime,
-      duration,
-      maxParticipants
-    });
+  const validateForm = (): boolean => {
+    console.log('🔍 Validating form...');
     
+    // Title validation
     if (!title.trim()) {
-      console.log('Validation failed: No title');
-      Alert.alert('Error', 'Please enter an activity title');
+      console.log('❌ Validation failed: Missing title');
+      showAlert(
+        'Missing Title',
+        'Please enter a title for your activity',
+        [{ text: 'OK', style: 'default' }]
+      );
       return false;
     }
+    
+    // Category validation
     if (!selectedCategory) {
-      console.log('Validation failed: No category');
-      Alert.alert('Error', 'Please select a category');
+      console.log('❌ Validation failed: Missing category');
+      showAlert(
+        'Missing Category',
+        'Please select a category for your activity',
+        [{ text: 'OK', style: 'default' }]
+      );
       return false;
     }
+    
+    // Location validation
     if (!locationName.trim()) {
-      console.log('Validation failed: No location name');
-      Alert.alert('Error', 'Please enter a location name');
+      console.log('❌ Validation failed: Missing location name');
+      showAlert(
+        'Missing Location',
+        'Please enter a location name where the activity will take place',
+        [{ text: 'OK', style: 'default' }]
+      );
       return false;
     }
+    
     if (!address.trim()) {
-      console.log('Validation failed: No address');
-      Alert.alert('Error', 'Please enter an address');
+      console.log('❌ Validation failed: Missing address');
+      showAlert(
+        'Missing Address',
+        'Please enter a full address for the activity location',
+        [{ text: 'OK', style: 'default' }]
+      );
       return false;
     }
-    if (scheduledTime < new Date()) {
-      console.log('Validation failed: Time is in the past');
-      Alert.alert('Error', 'Please select a future date and time');
+    
+    // Time validation
+    const now = new Date();
+    if (scheduledTime <= now) {
+      console.log('❌ Validation failed: Time is in the past');
+      showAlert(
+        'Invalid Time',
+        'Please select a future date and time for your activity',
+        [{ text: 'OK', style: 'default' }]
+      );
       return false;
     }
+    
+    // Duration validation
     const durationNum = parseInt(duration);
-    if (isNaN(durationNum) || durationNum < 15 || durationNum > 480) {
-      console.log('Validation failed: Invalid duration', duration);
-      Alert.alert('Error', 'Duration must be between 15 and 480 minutes');
+    if (!duration.trim() || isNaN(durationNum)) {
+      console.log('❌ Validation failed: Invalid duration');
+      showAlert(
+        'Invalid Duration',
+        'Please enter a valid duration in minutes',
+        [{ text: 'OK', style: 'default' }]
+      );
       return false;
     }
+    if (durationNum < 15) {
+      console.log('❌ Validation failed: Duration too short');
+      showAlert(
+        'Duration Too Short',
+        'Activities must be at least 15 minutes long',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return false;
+    }
+    if (durationNum > 480) {
+      console.log('❌ Validation failed: Duration too long');
+      showAlert(
+        'Duration Too Long',
+        'Activities cannot exceed 8 hours (480 minutes)',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return false;
+    }
+    
+    // Max participants validation
     const maxNum = parseInt(maxParticipants);
-    if (isNaN(maxNum) || maxNum < 2 || maxNum > 100) {
-      console.log('Validation failed: Invalid max participants', maxParticipants);
-      Alert.alert('Error', 'Max participants must be between 2 and 100');
+    if (!maxParticipants.trim() || isNaN(maxNum)) {
+      console.log('❌ Validation failed: Invalid max participants');
+      showAlert(
+        'Invalid Max Participants',
+        'Please enter a valid number of maximum participants',
+        [{ text: 'OK', style: 'default' }]
+      );
       return false;
     }
-    console.log('Validation passed!');
+    if (maxNum < 2) {
+      console.log('❌ Validation failed: Too few participants');
+      showAlert(
+        'Too Few Participants',
+        'Activities must allow at least 2 participants',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return false;
+    }
+    if (maxNum > 100) {
+      console.log('❌ Validation failed: Too many participants');
+      showAlert(
+        'Too Many Participants',
+        'Activities cannot exceed 100 participants',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return false;
+    }
+    
+    console.log('✅ Validation passed!');
     return true;
   };
 
   const handleCreate = async () => {
-    console.log('handleCreate called');
-    console.log('Is authenticated:', isAuthenticated);
-    console.log('User:', user);
+    console.log('🚀 Create button pressed!');
     
+    // Check authentication
     if (!isAuthenticated) {
-      Alert.alert('Error', 'You must be logged in to create an activity');
-      router.push('/login');
+      console.log('⚠️ User not authenticated');
+      showAlert(
+        'Not Logged In',
+        'You must be logged in to create an activity',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Login', onPress: () => router.push('/login') }
+        ]
+      );
       return;
     }
     
+    // Validate form
     if (!validateForm()) {
-      console.log('Validation failed');
+      // Validation already shows specific error - just return
+      console.log('⚠️ Form validation failed, stopping creation');
       return;
     }
 
-    console.log('Starting activity creation...');
+    // Show loading and create activity
     setIsLoading(true);
     try {
-      // Calculate end_time from scheduled_time and duration
       const endTime = new Date(scheduledTime.getTime() + parseInt(duration) * 60000);
       
       const activityData: CreateActivityData = {
@@ -157,16 +253,49 @@ export default function CreateActivityScreen() {
         visibility: isPrivate ? 'private' : 'public',
       };
 
-      console.log('Activity data:', activityData);
       const activity = await activitiesApi.createActivity(activityData);
-      console.log('Activity created:', activity);
-      Alert.alert('Success', 'Activity created successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      console.log('✅ Activity created successfully:', activity);
+      
+      showAlert(
+        '🎉 Success!',
+        'Your activity has been created and is now visible to others nearby',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
     } catch (error: any) {
       console.error('Failed to create activity:', error);
-      console.error('Error response:', error.response?.data);
-      Alert.alert('Error', error.response?.data?.detail || error.message || 'Failed to create activity. Please try again.');
+      
+      // Parse error message
+      let errorMessage = 'Failed to create activity. Please try again.';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else {
+          // Handle field-specific errors
+          const fieldErrors = Object.entries(errorData)
+            .map(([field, msgs]) => {
+              const messages = Array.isArray(msgs) ? msgs : [msgs];
+              return `${field}: ${messages.join(', ')}`;
+            })
+            .join('\n');
+          if (fieldErrors) {
+            errorMessage = fieldErrors;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showAlert(
+        'Creation Failed',
+        errorMessage,
+        [{ text: 'OK', style: 'default' }]
+      );
     } finally {
       setIsLoading(false);
     }
@@ -498,10 +627,7 @@ export default function CreateActivityScreen() {
           {/* Create Button */}
           <TouchableOpacity
             style={[styles.createButton, { opacity: isLoading ? 0.7 : 1 }]}
-            onPress={() => {
-              console.log('Button pressed!');
-              handleCreate();
-            }}
+            onPress={handleCreate}
             disabled={isLoading}
             activeOpacity={0.7}
           >

@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
+# Disable IPv6
+RUN echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip && \

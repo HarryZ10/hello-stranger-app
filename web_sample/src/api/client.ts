@@ -69,13 +69,21 @@ export const tokenStorage = {
 // Request interceptor - Add auth token
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    console.log('🌐 API Request:', config.method?.toUpperCase(), config.url);
+    console.log('🌐 Request data:', config.data);
     const token = await tokenStorage.getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Token attached to request');
+    } else {
+      console.log('No token available for request');
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 // Response interceptor - Handle token refresh
@@ -97,8 +105,14 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
 };
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API Response:', response.status, response.config.url);
+    return response;
+  },
   async (error: AxiosError) => {
+    console.error('API Error:', error.message);
+    console.error('Error config:', error.config?.url);
+    console.error('Error response:', error.response?.status, error.response?.data);
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     // If error is 401 and we haven't retried yet
