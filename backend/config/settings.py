@@ -172,6 +172,13 @@ CORS_ALLOWED_ORIGINS = config(
 )
 CORS_ALLOW_CREDENTIALS = True
 
+# CSRF Settings
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='https://mlh-project-production.up.railway.app',
+    cast=Csv()
+)
+
 # API Documentation (drf-spectacular)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MLH Project API',
