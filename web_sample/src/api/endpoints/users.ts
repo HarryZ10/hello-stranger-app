@@ -56,6 +56,14 @@ export const usersApi = {
   // },
 
   /**
+   * Get current user's profile
+   */
+  async getProfile(): Promise<User> {
+    const response = await apiClient.get<User>('/users/me/');
+    return response.data;
+  },
+
+  /**
    * Get user by ID
    */
   async getUser(userId: number): Promise<User> {

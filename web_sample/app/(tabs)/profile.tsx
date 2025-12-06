@@ -18,7 +18,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import usersAPI from '@/src/api/endpoints/users';
 import { useAuthStore } from '@/src/store/authStore';
-import { User, UserPreferences } from '@/src/types';
+import { User } from '@/src/types';
 
 interface ProfileSectionProps {
   title: string;
@@ -88,7 +88,6 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [profile, setProfile] = useState<User | null>(null);
-  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -98,12 +97,8 @@ export default function ProfileScreen() {
   const loadProfile = async () => {
     try {
       setIsLoading(true);
-      const [profileData, prefsData] = await Promise.all([
-        usersAPI.getProfile(),
-        usersAPI.getPreferences().catch(() => null),
-      ]);
+      const profileData = await usersAPI.getProfile();
       setProfile(profileData);
-      setPreferences(prefsData);
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
@@ -189,28 +184,28 @@ export default function ProfileScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={[styles.statNumber, { color: colorScheme === 'dark' ? '#ffffff' : '#1f2937' }]}>
-                {profile?.activities_hosted || 0}
+                {profile?.trust_score || 0}
               </Text>
               <Text style={[styles.statLabel, { color: colorScheme === 'dark' ? '#9ca3af' : '#6b7280' }]}>
-                Hosted
+                Trust Score
               </Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#374151' : '#e5e7eb' }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statNumber, { color: colorScheme === 'dark' ? '#ffffff' : '#1f2937' }]}>
-                {profile?.activities_joined || 0}
+                {profile?.total_reviews || 0}
               </Text>
               <Text style={[styles.statLabel, { color: colorScheme === 'dark' ? '#9ca3af' : '#6b7280' }]}>
-                Joined
+                Reviews
               </Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#374151' : '#e5e7eb' }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statNumber, { color: colorScheme === 'dark' ? '#ffffff' : '#1f2937' }]}>
-                {profile?.average_rating?.toFixed(1) || '0.0'}
+                {profile?.is_verified ? 'Yes' : 'No'}
               </Text>
               <Text style={[styles.statLabel, { color: colorScheme === 'dark' ? '#9ca3af' : '#6b7280' }]}>
-                Rating
+                Verified
               </Text>
             </View>
           </View>
