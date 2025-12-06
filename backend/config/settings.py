@@ -34,6 +34,10 @@ INSTALLED_APPS = [
     # Local apps
     'apps.users',
     'apps.api',
+    'apps.activities',
+    'apps.locations',
+    'apps.social',
+    'apps.safety',
 ]
 
 # Middleware
