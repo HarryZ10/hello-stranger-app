@@ -12,8 +12,8 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const handleCreateProfile = () => {
-    // Navigate to profile creation or map screen
-    router.push("/(tabs)/map");
+    // Send users to login/signup before letting them create a profile
+    router.push("/login");
   };
 
   return (

@@ -25,7 +25,7 @@ class ActivityCategoryListView(generics.ListAPIView):
     """List all activity categories"""
     queryset = ActivityCategory.objects.filter(is_active=True)
     serializer_class = ActivityCategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
 
 class ActivityListCreateView(generics.ListCreateAPIView):
