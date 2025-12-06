@@ -5,32 +5,33 @@ Or import and call seed_all() after migrations.
 """
 
 
-def seed_personality_traits():
-    """Create default personality traits"""
-    from apps.users.models import PersonalityTrait
-    
-    traits = [
-        {"name": "Friendly", "icon": "😊", "color": "#22c55e", "description": "Warm and welcoming to new people"},
-        {"name": "Nerdy", "icon": "🤓", "color": "#8b5cf6", "description": "Loves learning and intellectual discussions"},
-        {"name": "Athletic", "icon": "💪", "color": "#ef4444", "description": "Active and sporty lifestyle"},
-        {"name": "Creative", "icon": "🎨", "color": "#f59e0b", "description": "Artistic and imaginative"},
-        {"name": "Adventurous", "icon": "🏔️", "color": "#06b6d4", "description": "Loves exploring and trying new things"},
-        {"name": "Foodie", "icon": "🍕", "color": "#ec4899", "description": "Passionate about food and culinary experiences"},
-        {"name": "Chill", "icon": "😌", "color": "#6366f1", "description": "Relaxed and easy-going personality"},
-        {"name": "Outgoing", "icon": "🎉", "color": "#f97316", "description": "Social and loves meeting new people"},
-        {"name": "Bookworm", "icon": "📚", "color": "#84cc16", "description": "Loves reading and literature"},
-        {"name": "Gamer", "icon": "🎮", "color": "#a855f7", "description": "Passionate about video games"},
-        {"name": "Music Lover", "icon": "🎵", "color": "#14b8a6", "description": "Lives and breathes music"},
-        {"name": "Nature Lover", "icon": "🌿", "color": "#22c55e", "description": "Enjoys the outdoors and nature"},
-    ]
-    
-    for trait_data in traits:
-        PersonalityTrait.objects.get_or_create(
-            name=trait_data["name"],
-            defaults=trait_data
-        )
-    
-    print(f"Created {len(traits)} personality traits")
+# DISABLED - PersonalityTrait model doesn't exist in simplified version
+# def seed_personality_traits():
+#     """Create default personality traits"""
+#     from apps.users.models import PersonalityTrait
+#     
+#     traits = [
+#         {"name": "Friendly", "icon": "😊", "color": "#22c55e", "description": "Warm and welcoming to new people"},
+#         {"name": "Nerdy", "icon": "🤓", "color": "#8b5cf6", "description": "Loves learning and intellectual discussions"},
+#         {"name": "Athletic", "icon": "💪", "color": "#ef4444", "description": "Active and sporty lifestyle"},
+#         {"name": "Creative", "icon": "🎨", "color": "#f59e0b", "description": "Artistic and imaginative"},
+#         {"name": "Adventurous", "icon": "🏔️", "color": "#06b6d4", "description": "Loves exploring and trying new things"},
+#         {"name": "Foodie", "icon": "🍕", "color": "#ec4899", "description": "Passionate about food and culinary experiences"},
+#         {"name": "Chill", "icon": "😌", "color": "#6366f1", "description": "Relaxed and easy-going personality"},
+#         {"name": "Outgoing", "icon": "🎉", "color": "#f97316", "description": "Social and loves meeting new people"},
+#         {"name": "Bookworm", "icon": "📚", "color": "#84cc16", "description": "Loves reading and literature"},
+#         {"name": "Gamer", "icon": "🎮", "color": "#a855f7", "description": "Passionate about video games"},
+#         {"name": "Music Lover", "icon": "🎵", "color": "#14b8a6", "description": "Lives and breathes music"},
+#         {"name": "Nature Lover", "icon": "🌿", "color": "#22c55e", "description": "Enjoys the outdoors and nature"},
+#     ]
+#     
+#     for trait_data in traits:
+#         PersonalityTrait.objects.get_or_create(
+#             name=trait_data["name"],
+#             defaults=trait_data
+#         )
+#     
+#     print(f"Created {len(traits)} personality traits")
 
 
 def seed_activity_categories():
@@ -63,7 +64,7 @@ def seed_activity_categories():
 
 def seed_all():
     """Run all seed functions"""
-    seed_personality_traits()
+    # seed_personality_traits()  # Disabled - model doesn't exist
     seed_activity_categories()
     print("Seeding complete!")
 

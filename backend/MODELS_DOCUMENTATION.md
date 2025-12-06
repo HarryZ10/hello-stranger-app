@@ -1,645 +1,810 @@
-# 📊 Database Models Documentation
+# Database Models Documentation
 
-> Complete reference for all Django models in the Social Activity Finder application.
+> Complete database schema reference for Social Activity Finder
+
+**Django Version:** 5.0.9  
+**Database:** PostgreSQL (production) / SQLite (development)
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overview](#overview)
-2. [Entity Relationship Diagram](#entity-relationship-diagram)
-3. [Users App Models](#users-app-models)
-4. [Activities App Models](#activities-app-models)
-5. [Locations App Models](#locations-app-models)
-6. [Social App Models](#social-app-models)
-7. [Safety App Models](#safety-app-models)
+2. [Architecture](#architecture)
+3. [Users App](#users-app)
+4. [Activities App](#activities-app)
+5. [Locations App](#locations-app)
+6. [Social App](#social-app)
+7. [Safety App](#safety-app)
+8. [Relationships Diagram](#relationships-diagram)
+9. [Indexes & Performance](#indexes--performance)
 
 ---
 
 ## Overview
 
-The application uses **5 Django apps** with **13 models** total:
+The application uses a **5-app architecture** following Django best practices:
 
 | App | Models | Purpose |
 |-----|--------|---------|
-| `users` | 4 | User profiles, personality traits, preferences |
-| `activities` | 4 | Activities, categories, participants, comments |
-| `locations` | 1 | User location tracking |
-| `social` | 2 | Friend connections, direct messages |
+| `users` | 1 | User authentication and profiles |
+| `activities` | 4 | Activity creation, participation, comments, categories |
+| `locations` | 1 | Real-time location tracking and nearby discovery |
+| `social` | 2 | Friend connections and direct messaging |
 | `safety` | 4 | Reviews, reports, verifications, emergency contacts |
 
+**Total Models:** 12
+
 ---
 
-## Entity Relationship Diagram
+## Architecture
 
+### Design Principles
+
+1. **Separation of Concerns**: Each app handles a distinct domain
+2. **Consistent Patterns**: All models use `created_at`/`updated_at` where applicable
+3. **Soft Relationships**: Foreign keys use `SET_NULL` where data retention is important
+4. **Audit Trail**: Status fields track state changes over time
+5. **Scalability**: Indexed fields for common query patterns
+
+### Common Field Patterns
+
+**Timestamps:**
+```python
+created_at = models.DateTimeField(auto_now_add=True)
+updated_at = models.DateTimeField(auto_now=True)
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                    USERS APP                                     │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌──────────────────┐      M:M      ┌────────────────────┐                      │
-│  │       User       │◄────────────►│  PersonalityTrait   │                      │
-│  └────────┬─────────┘    through    └────────────────────┘                      │
-│           │              UserPersonalityTrait                                    │
-│           │                                                                      │
-│           │ 1:1                                                                  │
-│           ▼                                                                      │
-│  ┌──────────────────┐                                                           │
-│  │  UserPreferences │                                                           │
-│  └──────────────────┘                                                           │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                 ACTIVITIES APP                                   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌──────────────────┐       1:M      ┌──────────────────┐                       │
-│  │ ActivityCategory │◄──────────────│     Activity      │                       │
-│  └──────────────────┘                └────────┬─────────┘                       │
-│                                               │                                  │
-│                              ┌────────────────┼────────────────┐                │
-│                              │ 1:M            │ 1:M            │ 1:M            │
-│                              ▼                ▼                ▼                │
-│                 ┌─────────────────┐  ┌───────────────┐  ┌─────────────┐         │
-│                 │ActivityParticipant│  │ActivityComment│  │   (User)   │         │
-│                 └─────────────────┘  └───────────────┘  └─────────────┘         │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+**User References:**
+```python
+user = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.CASCADE,
+    related_name='...'
+)
+```
 
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                 LOCATIONS APP                                    │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌──────────────────┐                                                           │
-│  │   UserLocation   │◄──────────── User (1:M)                                   │
-│  └──────────────────┘                                                           │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+**Choice Fields:**
+```python
+class StatusChoices(models.TextChoices):
+    ACTIVE = 'active', 'Active'
+    INACTIVE = 'inactive', 'Inactive'
 
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                  SOCIAL APP                                      │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌──────────────────┐                   ┌──────────────────┐                    │
-│  │    Connection    │                   │     Message      │                    │
-│  │  (from_user →    │                   │  (sender →       │                    │
-│  │   to_user)       │                   │   recipient)     │                    │
-│  └──────────────────┘                   └──────────────────┘                    │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                  SAFETY APP                                      │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐              │
-│  │    UserReview    │  │      Report      │  │   Verification   │              │
-│  │ (reviewer →      │  │ (reporter →      │  │                  │              │
-│  │  reviewed_user)  │  │  reported_user)  │  │                  │              │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘              │
-│                                                                                  │
-│  ┌──────────────────┐                                                           │
-│  │ EmergencyContact │◄──────────── User (1:M)                                   │
-│  └──────────────────┘                                                           │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+status = models.CharField(
+    max_length=20,
+    choices=StatusChoices.choices,
+    default=StatusChoices.ACTIVE
+)
 ```
 
 ---
 
-## Users App Models
+## Users App
 
-### 📦 `PersonalityTrait`
+**Location:** `backend/apps/users/`
 
-Personality traits that users can add to their profiles (e.g., Friendly, Nerdy, Athletic).
+### User Model
 
-**Database Table:** `personality_traits`
+**Table:** `users`
+
+Custom user model extending Django's `AbstractUser`. Uses email as primary authentication.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `name` | CharField(50) | Unique | Trait name (e.g., "Friendly") |
-| `icon` | CharField(50) | Optional | Emoji or icon name (e.g., "😊") |
-| `color` | CharField(7) | Default: `#6366f1` | Hex color code for UI |
-| `description` | TextField | Optional | Description of the trait |
-
-**Example Data:**
-```json
-{
-  "id": 1,
-  "name": "Friendly",
-  "icon": "😊",
-  "color": "#22c55e",
-  "description": "Warm and welcoming to new people"
-}
-```
-
----
-
-### 📦 `User`
-
-Extended Django user model with social features.
-
-**Database Table:** `users`
-
-**Extends:** `django.contrib.auth.models.AbstractUser`
-
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `email` | EmailField | Unique, Required | Primary login identifier |
-| `username` | CharField(150) | Unique, Required | Username |
-| `first_name` | CharField(150) | Optional | First name |
-| `last_name` | CharField(150) | Optional | Last name |
-| `password` | CharField(128) | Required | Hashed password |
+| `id` | AutoField | PK | Auto-incrementing primary key |
+| `email` | EmailField | Unique, Required | Primary authentication identifier |
+| `username` | CharField(150) | Unique, Required | Display username |
+| `first_name` | CharField(150) | Optional | User's first name |
+| `last_name` | CharField(150) | Optional | User's last name |
+| `password` | CharField | Required | Hashed password |
 | `bio` | TextField(500) | Optional | User biography |
-| `avatar` | ImageField | Optional | Profile picture (uploads to `avatars/`) |
-| `display_name` | CharField(100) | Optional | Public display name |
-| `date_of_birth` | DateField | Optional | Birth date |
-| `phone_number` | CharField(20) | Optional | Phone number |
-| `trust_score` | DecimalField(3,2) | Default: 0.00, Range: 0-5 | Average rating from reviews |
-| `total_reviews` | PositiveIntegerField | Default: 0 | Count of reviews received |
-| `is_verified` | BooleanField | Default: False | Overall verification status |
-| `is_phone_verified` | BooleanField | Default: False | Phone verification status |
-| `is_email_verified` | BooleanField | Default: False | Email verification status |
-| `share_location` | BooleanField | Default: True | Whether to share location |
-| `location_visibility` | CharField(20) | Choices, Default: `approximate` | Location precision level |
+| `avatar` | ImageField | Optional | Profile picture (uploaded to `avatars/`) |
 | `is_active` | BooleanField | Default: True | Account active status |
-| `is_staff` | BooleanField | Default: False | Admin access |
-| `date_joined` | DateTimeField | Auto | Registration timestamp |
-| `updated_at` | DateTimeField | Auto | Last update timestamp |
+| `is_staff` | BooleanField | Default: False | Staff status for admin access |
+| `is_superuser` | BooleanField | Default: False | Superuser status |
+| `date_joined` | DateTimeField | Auto | Account creation timestamp |
+| `last_login` | DateTimeField | Nullable | Last login timestamp |
 
-**Location Visibility Choices:**
-| Value | Display |
-|-------|---------|
-| `exact` | Exact Location |
-| `approximate` | Approximate (within 1km) |
-| `hidden` | Hidden |
+**Authentication:**
+- `USERNAME_FIELD = 'email'`
+- `REQUIRED_FIELDS = ['username']`
 
-**Relationships:**
-- `personality_traits` → ManyToMany to `PersonalityTrait` through `UserPersonalityTrait`
+**Meta Options:**
+```python
+db_table = 'users'
+verbose_name = 'User'
+verbose_name_plural = 'Users'
+ordering = ['-date_joined']
+```
 
 **Methods:**
-- `update_trust_score()` - Recalculates trust_score based on UserReview ratings
+- `__str__()`: Returns email
+- Inherits all `AbstractUser` methods (password hashing, permissions, etc.)
+
+**Related Names:**
+- `created_activities` - Activities created by user
+- `activity_participations` - Activity participations
+- `activity_comments` - Comments on activities
+- `connections_sent` - Connection requests sent
+- `connections_received` - Connection requests received
+- `sent_messages` - Messages sent
+- `received_messages` - Messages received
+- `locations` - Location history
+- `reviews_given` - Reviews written
+- `reviews_received` - Reviews received
+- `reports_submitted` - Reports filed
+- `reports_against` - Reports against user
+- `verifications` - Verification records
+- `emergency_contacts` - Emergency contacts
 
 ---
 
-### 📦 `UserPersonalityTrait`
+## Activities App
 
-Junction table linking users to their personality traits with prominence scores.
+**Location:** `backend/apps/activities/`
 
-**Database Table:** `user_personality_traits`
+### ActivityCategory Model
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `user` | ForeignKey | → User, CASCADE | The user |
-| `personality_trait` | ForeignKey | → PersonalityTrait, CASCADE | The trait |
-| `prominence_score` | PositiveIntegerField | Range: 1-5, Default: 1 | How prominently to display (5 = most prominent) |
+**Table:** `activity_categories`
 
-**Unique Constraint:** `(user, personality_trait)`
+Predefined categories for organizing activities.
 
----
-
-### 📦 `UserPreferences`
-
-User preferences for discovery, notifications, and privacy.
-
-**Database Table:** `user_preferences`
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `user` | OneToOneField | → User, CASCADE | The user |
-| `discovery_radius_km` | PositiveIntegerField | Default: 10 | Search radius in kilometers |
-| `age_range_min` | PositiveIntegerField | Default: 18 | Minimum age for matches |
-| `age_range_max` | PositiveIntegerField | Default: 99 | Maximum age for matches |
-| `min_trust_score` | DecimalField(3,2) | Default: 0.00, Range: 0-5 | Minimum trust score filter |
-| `notify_nearby_activities` | BooleanField | Default: True | Notify about nearby activities |
-| `notify_activity_invites` | BooleanField | Default: True | Notify about invites |
-| `notify_messages` | BooleanField | Default: True | Notify about messages |
-| `notify_friend_activities` | BooleanField | Default: True | Notify about friend activities |
-| `show_online_status` | BooleanField | Default: True | Show online status |
-| `allow_friend_requests` | BooleanField | Default: True | Allow friend requests |
-
----
-
-## Activities App Models
-
-### 📦 `ActivityCategory`
-
-Categories for organizing activities.
-
-**Database Table:** `activity_categories`
-
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `name` | CharField(50) | Unique | Category name |
-| `icon` | CharField(50) | Required | Emoji/icon for category |
-| `color` | CharField(7) | Default: `#6366f1` | Hex color code |
+| `id` | AutoField | PK | Primary key |
+| `name` | CharField(50) | Unique, Required | Category name (e.g., "Sports", "Food") |
+| `icon` | CharField(50) | Required | Icon/emoji for UI display |
+| `color` | CharField(7) | Default: "#6366f1" | Hex color code for UI |
 | `description` | TextField | Optional | Category description |
-| `is_active` | BooleanField | Default: True | Whether category is available |
+| `is_active` | BooleanField | Default: True | Whether category is active |
 
-**Example Data:**
-```json
-{
-  "id": 1,
-  "name": "Sports & Fitness",
-  "icon": "⚽",
-  "color": "#ef4444",
-  "description": "Physical activities and sports"
-}
+**Meta:**
+```python
+db_table = 'activity_categories'
+ordering = ['name']
 ```
 
-**Default Categories:**
-- Sports & Fitness ⚽
-- Food & Dining 🍽️
-- Outdoor Adventures 🏕️
-- Social & Meetups 👥
-- Games & Entertainment 🎮
-- Arts & Culture 🎭
-- Learning & Education 📖
-- Tech & Gaming 💻
-- Music & Concerts 🎵
-- Movies & TV 🎬
-- Wellness & Mindfulness 🧘
-- Pets & Animals 🐕
+**Related Names:**
+- `activities` - Activities in this category
 
 ---
 
-### 📦 `Activity`
+### Activity Model
+
+**Table:** `activities`
 
 Main model for user-created activities/events.
 
-**Database Table:** `activities`
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `creator` | ForeignKey | → User, CASCADE | Activity creator |
+| `id` | AutoField | PK | Primary key |
+| `creator` | ForeignKey(User) | Required, CASCADE | Activity creator |
 | `title` | CharField(200) | Required | Activity title |
 | `description` | TextField | Optional | Detailed description |
-| `category` | ForeignKey | → ActivityCategory, SET_NULL | Activity category |
+| `category` | ForeignKey(ActivityCategory) | Nullable, SET_NULL | Activity category |
 | `latitude` | DecimalField(9,6) | Required | Location latitude |
 | `longitude` | DecimalField(9,6) | Required | Location longitude |
 | `location_name` | CharField(255) | Optional | Human-readable location |
 | `address` | CharField(500) | Optional | Full address |
-| `start_time` | DateTimeField | Required | When activity starts |
-| `end_time` | DateTimeField | Optional | When activity ends |
-| `max_participants` | PositiveIntegerField | Default: 10 | Maximum attendees |
-| `current_participants_count` | PositiveIntegerField | Default: 0 | Current attendee count |
-| `visibility` | CharField(20) | Choices, Default: `public` | Who can see/join |
-| `status` | CharField(20) | Choices, Default: `active` | Activity status |
-| `min_age` | PositiveIntegerField | Optional | Minimum age requirement |
-| `min_trust_score` | DecimalField(3,2) | Default: 0.00 | Minimum trust score to join |
+| `start_time` | DateTimeField | Required | Activity start time |
+| `end_time` | DateTimeField | Nullable | Activity end time |
+| `max_participants` | PositiveIntegerField | Default: 10 | Maximum participants |
+| `current_participants_count` | PositiveIntegerField | Default: 0 | Current participant count |
+| `visibility` | CharField(20) | Choices, Default: 'public' | Access control |
+| `status` | CharField(20) | Choices, Default: 'active' | Activity status |
+| `min_age` | PositiveIntegerField | Nullable | Minimum age requirement |
+| `min_trust_score` | DecimalField(3,2) | Default: 0.00 | Min trust score (0-5) |
 | `requirements` | TextField | Optional | Additional requirements |
-| `cover_image` | ImageField | Optional | Cover image |
+| `cover_image` | ImageField | Nullable | Cover photo |
 | `created_at` | DateTimeField | Auto | Creation timestamp |
 | `updated_at` | DateTimeField | Auto | Last update timestamp |
 
-**Visibility Choices:**
-| Value | Display | Description |
-|-------|---------|-------------|
-| `public` | Public | Anyone can see and join |
-| `private` | Private | Only creator can see |
-| `friends` | Friends Only | Only friends can see/join |
-| `invite` | Invite Only | Must be invited to join |
+**Choices:**
 
-**Status Choices:**
-| Value | Display | Description |
-|-------|---------|-------------|
-| `active` | Active | Activity is open |
-| `completed` | Completed | Activity has ended |
-| `cancelled` | Cancelled | Activity was cancelled |
-| `full` | Full | No more spots available |
+**VisibilityChoices:**
+- `public` - Public (anyone can see and join)
+- `private` - Private (hidden, invite only)
+- `friends` - Friends Only (only friends can see)
+- `invite` - Invite Only (visible but requires invitation)
 
-**Indexes:**
-- `(latitude, longitude)` - Geospatial queries
-- `(start_time)` - Time-based sorting
-- `(status)` - Status filtering
-- `(category)` - Category filtering
+**StatusChoices:**
+- `active` - Active (accepting participants)
+- `completed` - Completed (activity finished)
+- `cancelled` - Cancelled (activity cancelled)
+- `full` - Full (max participants reached)
 
-**Computed Properties:**
-- `is_full` → Boolean: `current_participants_count >= max_participants`
-- `spots_left` → Integer: `max_participants - current_participants_count`
-- `is_active` → Boolean: status is active AND start_time > now
+**Meta:**
+```python
+db_table = 'activities'
+ordering = ['-start_time']
+indexes = [
+    Index(fields=['latitude', 'longitude']),
+    Index(fields=['start_time']),
+    Index(fields=['status']),
+    Index(fields=['category']),
+]
+```
+
+**Properties:**
+- `is_full` - Returns True if at capacity
+- `spots_left` - Returns remaining spots
+- `is_active` - Returns True if active and future
 
 **Methods:**
-- `update_participant_count()` - Syncs participant count and updates status
+- `update_participant_count()` - Recalculates participant count
+
+**Related Names:**
+- `participants` - ActivityParticipant records
+- `comments` - Activity comments
+- `user_reviews` - Reviews related to this activity
+- `reports` - Reports related to this activity
+- `related_messages` - Messages referencing this activity
 
 ---
 
-### 📦 `ActivityParticipant`
+### ActivityParticipant Model
 
-Junction table for activity participants with participation status.
+**Table:** `activity_participants`
 
-**Database Table:** `activity_participants`
+Through table managing activity participation.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `activity` | ForeignKey | → Activity, CASCADE | The activity |
-| `user` | ForeignKey | → User, CASCADE | The participant |
-| `status` | CharField(20) | Choices, Default: `requested` | Participation status |
-| `invited_by` | ForeignKey | → User, SET_NULL, Optional | Who invited this user |
-| `joined_at` | DateTimeField | Auto | When user requested/was invited |
-| `checked_in_at` | DateTimeField | Optional | When user checked in |
-| `checked_out_at` | DateTimeField | Optional | When user checked out |
+| `id` | AutoField | PK | Primary key |
+| `activity` | ForeignKey(Activity) | Required, CASCADE | Related activity |
+| `user` | ForeignKey(User) | Required, CASCADE | Participant user |
+| `status` | CharField(20) | Choices, Default: 'requested' | Participation status |
+| `invited_by` | ForeignKey(User) | Nullable, SET_NULL | User who sent invite |
+| `joined_at` | DateTimeField | Auto | When user joined/requested |
+| `checked_in_at` | DateTimeField | Nullable | Check-in timestamp |
+| `checked_out_at` | DateTimeField | Nullable | Check-out timestamp |
 
-**Status Choices:**
-| Value | Display | Description |
-|-------|---------|-------------|
-| `invited` | Invited | User was invited |
-| `requested` | Requested to Join | User requested to join |
-| `accepted` | Accepted | User is confirmed |
-| `declined` | Declined | User declined/was rejected |
-| `checked_in` | Checked In | User is at the activity |
-| `left` | Left | User left the activity |
+**StatusChoices:**
+- `invited` - Invited (not yet responded)
+- `requested` - Requested to Join (awaiting approval)
+- `accepted` - Accepted (confirmed participant)
+- `declined` - Declined (invitation rejected)
+- `checked_in` - Checked In (physically present)
+- `left` - Left (withdrew from activity)
 
-**Unique Constraint:** `(activity, user)`
+**Meta:**
+```python
+db_table = 'activity_participants'
+unique_together = ['activity', 'user']
+ordering = ['-joined_at']
+```
 
-**Lifecycle Hooks:**
-- On save/delete: Calls `activity.update_participant_count()`
+**Hooks:**
+- `save()` - Updates activity participant count
+- `delete()` - Updates activity participant count
+
+**Related Names:**
+- From Activity: `participants`
+- From User: `activity_participations`
+- From invited_by: `sent_activity_invites`
 
 ---
 
-### 📦 `ActivityComment`
+### ActivityComment Model
 
-Comments on activities with optional threading.
+**Table:** `activity_comments`
 
-**Database Table:** `activity_comments`
+Comments and replies on activities.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `activity` | ForeignKey | → Activity, CASCADE | The activity |
-| `user` | ForeignKey | → User, CASCADE | Comment author |
-| `content` | TextField(1000) | Required | Comment content |
-| `parent` | ForeignKey | → self, CASCADE, Optional | Parent comment (for replies) |
+| `id` | AutoField | PK | Primary key |
+| `activity` | ForeignKey(Activity) | Required, CASCADE | Related activity |
+| `user` | ForeignKey(User) | Required, CASCADE | Comment author |
+| `content` | TextField(1000) | Required | Comment text |
+| `parent` | ForeignKey(Self) | Nullable, CASCADE | Parent comment (for replies) |
 | `created_at` | DateTimeField | Auto | Creation timestamp |
-| `updated_at` | DateTimeField | Auto | Last update timestamp |
+| `updated_at` | DateTimeField | Auto | Last edit timestamp |
+
+**Meta:**
+```python
+db_table = 'activity_comments'
+ordering = ['created_at']
+```
+
+**Related Names:**
+- From Activity: `comments`
+- From User: `activity_comments`
+- Self-referencing: `replies`
 
 ---
 
-## Locations App Models
+## Locations App
 
-### 📦 `UserLocation`
+**Location:** `backend/apps/locations/`
 
-Stores user location data for nearby discovery features.
+### UserLocation Model
 
-**Database Table:** `user_locations`
+**Table:** `user_locations`
+
+Tracks user location history for nearby discovery.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `user` | ForeignKey | → User, CASCADE | The user |
+| `id` | AutoField | PK | Primary key |
+| `user` | ForeignKey(User) | Required, CASCADE | User |
 | `latitude` | DecimalField(9,6) | Required | Location latitude |
 | `longitude` | DecimalField(9,6) | Required | Location longitude |
-| `accuracy` | FloatField | Optional | GPS accuracy in meters |
-| `altitude` | FloatField | Optional | Altitude in meters |
-| `is_current` | BooleanField | Default: True | Is this the current location |
-| `is_visible` | BooleanField | Default: True | Is location visible to others |
-| `current_activity` | CharField(200) | Optional | What user is currently doing |
-| `timestamp` | DateTimeField | Auto | When location was recorded |
+| `accuracy` | FloatField | Nullable | GPS accuracy in meters |
+| `altitude` | FloatField | Nullable | Altitude |
+| `is_current` | BooleanField | Default: True | Is current location |
+| `is_visible` | BooleanField | Default: True | Share location with others |
+| `current_activity` | CharField(200) | Optional | What user is doing |
+| `timestamp` | DateTimeField | Auto | Location timestamp |
 
-**Indexes:**
-- `(latitude, longitude)` - Geospatial queries
-- `(is_current, is_visible)` - Filtering active locations
-- `(-timestamp)` - Time-based sorting
+**Meta:**
+```python
+db_table = 'user_locations'
+ordering = ['-timestamp']
+indexes = [
+    Index(fields=['latitude', 'longitude']),
+    Index(fields=['is_current', 'is_visible']),
+    Index(fields=['-timestamp']),
+]
+```
 
-**Lifecycle Hooks:**
-- On save with `is_current=True`: Sets all other user locations to `is_current=False`
-
-**Static Methods:**
-- `haversine_distance(lat1, lon1, lat2, lon2)` → Float (km)
-  - Calculates great-circle distance between two coordinates
+**Hooks:**
+- `save()` - Sets all other user locations as `is_current=False`
 
 **Class Methods:**
-- `get_nearby_users(latitude, longitude, radius_km=10, exclude_user=None)`
-  - Returns list of `{user, location, distance_km}` within radius
-  
-- `get_nearby_activities(latitude, longitude, radius_km=10)`
-  - Returns list of `{activity, distance_km}` within radius
+- `haversine_distance(lat1, lon1, lat2, lon2)` - Calculate distance in km
+- `get_nearby_users(latitude, longitude, radius_km=10, exclude_user=None)` - Find nearby users
+- `get_nearby_activities(latitude, longitude, radius_km=10)` - Find nearby activities
+
+**Related Names:**
+- From User: `locations`
+
+**Notes:**
+- For production, consider using PostGIS for spatial queries
+- Current implementation uses Haversine formula in Python
 
 ---
 
-## Social App Models
+## Social App
 
-### 📦 `Connection`
+**Location:** `backend/apps/social/`
 
-Friend/follower connections between users.
+### Connection Model
 
-**Database Table:** `connections`
+**Table:** `connections`
+
+Friend/connection system between users.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `from_user` | ForeignKey | → User, CASCADE | User who sent request |
-| `to_user` | ForeignKey | → User, CASCADE | User who received request |
-| `status` | CharField(20) | Choices, Default: `pending` | Connection status |
-| `created_at` | DateTimeField | Auto | When connection was created |
-| `updated_at` | DateTimeField | Auto | Last status change |
+| `id` | AutoField | PK | Primary key |
+| `from_user` | ForeignKey(User) | Required, CASCADE | User sending request |
+| `to_user` | ForeignKey(User) | Required, CASCADE | User receiving request |
+| `status` | CharField(20) | Choices, Default: 'pending' | Connection status |
+| `created_at` | DateTimeField | Auto | Request sent timestamp |
+| `updated_at` | DateTimeField | Auto | Status change timestamp |
 
-**Status Choices:**
-| Value | Display | Description |
-|-------|---------|-------------|
-| `pending` | Pending | Request awaiting response |
-| `accepted` | Accepted | Users are friends |
-| `declined` | Declined | Request was rejected |
-| `blocked` | Blocked | User is blocked |
+**StatusChoices:**
+- `pending` - Pending (awaiting response)
+- `accepted` - Accepted (friends)
+- `declined` - Declined (request rejected)
+- `blocked` - Blocked (user blocked)
 
-**Unique Constraint:** `(from_user, to_user)`
+**Meta:**
+```python
+db_table = 'connections'
+unique_together = ['from_user', 'to_user']
+ordering = ['-created_at']
+```
 
 **Class Methods:**
-- `are_friends(user1, user2)` → Boolean
-  - Checks if two users have an accepted connection
-  
-- `get_friends(user)` → QuerySet[User]
-  - Returns all users with accepted connections to given user
-  
-- `is_blocked(user1, user2)` → Boolean
-  - Checks if either user has blocked the other
+- `are_friends(user1, user2)` - Check if two users are friends
+- `get_friends(user)` - Get all friends of a user
+- `is_blocked(user1, user2)` - Check if either user blocked the other
+
+**Related Names:**
+- From User (from_user): `connections_sent`
+- From User (to_user): `connections_received`
 
 ---
 
-### 📦 `Message`
+### Message Model
+
+**Table:** `messages`
 
 Direct messages between users.
 
-**Database Table:** `messages`
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `sender` | ForeignKey | → User, CASCADE | Message sender |
-| `recipient` | ForeignKey | → User, CASCADE | Message recipient |
+| `id` | AutoField | PK | Primary key |
+| `sender` | ForeignKey(User) | Required, CASCADE | Message sender |
+| `recipient` | ForeignKey(User) | Required, CASCADE | Message recipient |
 | `content` | TextField(5000) | Required | Message content |
-| `related_activity` | ForeignKey | → Activity, SET_NULL, Optional | Related activity context |
-| `is_read` | BooleanField | Default: False | Whether message was read |
-| `read_at` | DateTimeField | Optional | When message was read |
-| `sent_at` | DateTimeField | Auto | When message was sent |
+| `related_activity` | ForeignKey(Activity) | Nullable, SET_NULL | Optional activity context |
+| `is_read` | BooleanField | Default: False | Read status |
+| `read_at` | DateTimeField | Nullable | When message was read |
+| `sent_at` | DateTimeField | Auto | Message sent timestamp |
 
-**Indexes:**
-- `(sender, recipient)` - Conversation queries
-- `(-sent_at)` - Time-based sorting
+**Meta:**
+```python
+db_table = 'messages'
+ordering = ['sent_at']
+indexes = [
+    Index(fields=['sender', 'recipient']),
+    Index(fields=['-sent_at']),
+]
+```
 
 **Class Methods:**
-- `get_conversation(user1, user2)` → QuerySet[Message]
-  - Returns all messages between two users, ordered by sent_at
-  
-- `get_conversations_for_user(user)` → List[dict]
-  - Returns list of `{partner_id, last_message, unread_count}` for all conversations
+- `get_conversation(user1, user2)` - Get all messages between two users
+- `get_conversations_for_user(user)` - Get list of conversations with last message and unread count
+
+**Related Names:**
+- From User (sender): `sent_messages`
+- From User (recipient): `received_messages`
+- From Activity: `related_messages`
 
 ---
 
-## Safety App Models
+## Safety App
 
-### 📦 `UserReview`
+**Location:** `backend/apps/safety/`
 
-Reviews and ratings between users after activities.
+### UserReview Model
 
-**Database Table:** `user_reviews`
+**Table:** `user_reviews`
+
+User reviews and ratings after activities.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `reviewer` | ForeignKey | → User, CASCADE | User giving the review |
-| `reviewed_user` | ForeignKey | → User, CASCADE | User being reviewed |
-| `activity` | ForeignKey | → Activity, SET_NULL, Optional | Activity context |
-| `rating` | PositiveIntegerField | Range: 1-5, Required | Overall rating |
-| `safety_rating` | PositiveIntegerField | Range: 1-5, Optional | Safety rating |
-| `friendliness_rating` | PositiveIntegerField | Range: 1-5, Optional | Friendliness rating |
-| `reliability_rating` | PositiveIntegerField | Range: 1-5, Optional | Reliability rating |
-| `comment` | TextField(1000) | Optional | Review comment |
-| `created_at` | DateTimeField | Auto | Creation timestamp |
-| `updated_at` | DateTimeField | Auto | Last update timestamp |
+| `id` | AutoField | PK | Primary key |
+| `reviewer` | ForeignKey(User) | Required, CASCADE | User writing review |
+| `reviewed_user` | ForeignKey(User) | Required, CASCADE | User being reviewed |
+| `activity` | ForeignKey(Activity) | Nullable, SET_NULL | Related activity |
+| `rating` | PositiveIntegerField | Required, 1-5 | Overall rating |
+| `safety_rating` | PositiveIntegerField | Nullable, 1-5 | Safety rating |
+| `friendliness_rating` | PositiveIntegerField | Nullable, 1-5 | Friendliness rating |
+| `reliability_rating` | PositiveIntegerField | Nullable, 1-5 | Reliability rating |
+| `comment` | TextField(1000) | Optional | Written review |
+| `created_at` | DateTimeField | Auto | Review timestamp |
+| `updated_at` | DateTimeField | Auto | Last edit timestamp |
 
-**Unique Constraint:** `(reviewer, reviewed_user, activity)`
+**Meta:**
+```python
+db_table = 'user_reviews'
+unique_together = ['reviewer', 'reviewed_user', 'activity']
+ordering = ['-created_at']
+```
 
-**Lifecycle Hooks:**
-- On save: Calls `reviewed_user.update_trust_score()` to recalculate trust score
+**Hooks:**
+- `save()` - Updates reviewed user's trust score (if implemented)
+
+**Related Names:**
+- From User (reviewer): `reviews_given`
+- From User (reviewed_user): `reviews_received`
+- From Activity: `user_reviews`
 
 ---
 
-### 📦 `Report`
+### Report Model
 
-Safety reports for violations or concerns.
+**Table:** `reports`
 
-**Database Table:** `reports`
+Safety reports and violations.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `reporter` | ForeignKey | → User, CASCADE | User submitting report |
-| `reported_user` | ForeignKey | → User, CASCADE | User being reported |
-| `reported_activity` | ForeignKey | → Activity, SET_NULL, Optional | Related activity |
-| `reason` | CharField(20) | Choices, Required | Report category |
+| `id` | AutoField | PK | Primary key |
+| `reporter` | ForeignKey(User) | Required, CASCADE | User filing report |
+| `reported_user` | ForeignKey(User) | Required, CASCADE | User being reported |
+| `reported_activity` | ForeignKey(Activity) | Nullable, SET_NULL | Related activity |
+| `reason` | CharField(20) | Choices, Required | Report reason |
 | `description` | TextField | Required | Detailed description |
-| `status` | CharField(20) | Choices, Default: `pending` | Report status |
-| `admin_notes` | TextField | Optional | Admin internal notes |
-| `resolved_by` | ForeignKey | → User, SET_NULL, Optional | Admin who resolved |
-| `resolved_at` | DateTimeField | Optional | Resolution timestamp |
-| `created_at` | DateTimeField | Auto | Creation timestamp |
+| `status` | CharField(20) | Choices, Default: 'pending' | Review status |
+| `admin_notes` | TextField | Optional | Admin response notes |
+| `resolved_by` | ForeignKey(User) | Nullable, SET_NULL | Admin who resolved |
+| `resolved_at` | DateTimeField | Nullable | Resolution timestamp |
+| `created_at` | DateTimeField | Auto | Report timestamp |
 | `updated_at` | DateTimeField | Auto | Last update timestamp |
 
-**Reason Choices:**
-| Value | Display |
-|-------|---------|
-| `harassment` | Harassment |
-| `inappropriate` | Inappropriate Behavior |
-| `spam` | Spam |
-| `fake` | Fake Profile |
-| `safety` | Safety Concern |
-| `scam` | Scam/Fraud |
-| `other` | Other |
+**ReasonChoices:**
+- `harassment` - Harassment
+- `inappropriate` - Inappropriate Behavior
+- `spam` - Spam
+- `fake` - Fake Profile
+- `safety` - Safety Concern
+- `scam` - Scam/Fraud
+- `other` - Other
 
-**Status Choices:**
-| Value | Display |
-|-------|---------|
-| `pending` | Pending Review |
-| `reviewing` | Under Review |
-| `resolved` | Resolved |
-| `dismissed` | Dismissed |
+**StatusChoices:**
+- `pending` - Pending Review
+- `reviewing` - Under Review
+- `resolved` - Resolved
+- `dismissed` - Dismissed
+
+**Meta:**
+```python
+db_table = 'reports'
+ordering = ['-created_at']
+```
+
+**Related Names:**
+- From User (reporter): `reports_submitted`
+- From User (reported_user): `reports_against`
+- From User (resolved_by): `resolved_reports`
+- From Activity: `reports`
 
 ---
 
-### 📦 `Verification`
+### Verification Model
 
-User verification records for email, phone, ID verification.
+**Table:** `verifications`
 
-**Database Table:** `verifications`
+User verification records (email, phone, ID, photo).
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `user` | ForeignKey | → User, CASCADE | User being verified |
+| `id` | AutoField | PK | Primary key |
+| `user` | ForeignKey(User) | Required, CASCADE | User being verified |
 | `verification_type` | CharField(20) | Choices, Required | Type of verification |
-| `status` | CharField(20) | Choices, Default: `pending` | Verification status |
-| `verification_code` | CharField(20) | Optional | Verification code (for email/phone) |
-| `expires_at` | DateTimeField | Optional | Code expiration time |
-| `created_at` | DateTimeField | Auto | Creation timestamp |
-| `verified_at` | DateTimeField | Optional | Verification timestamp |
+| `status` | CharField(20) | Choices, Default: 'pending' | Verification status |
+| `verification_code` | CharField(20) | Optional | Code for email/phone |
+| `expires_at` | DateTimeField | Nullable | Code expiration |
+| `created_at` | DateTimeField | Auto | Request timestamp |
+| `verified_at` | DateTimeField | Nullable | Verification timestamp |
 
-**Type Choices:**
-| Value | Display |
-|-------|---------|
-| `email` | Email Verification |
-| `phone` | Phone Verification |
-| `id` | ID Verification |
-| `photo` | Photo Verification |
+**TypeChoices:**
+- `email` - Email Verification
+- `phone` - Phone Verification
+- `id` - ID Verification
+- `photo` - Photo Verification
 
-**Status Choices:**
-| Value | Display |
-|-------|---------|
-| `pending` | Pending |
-| `verified` | Verified |
-| `rejected` | Rejected |
-| `expired` | Expired |
+**StatusChoices:**
+- `pending` - Pending
+- `verified` - Verified
+- `rejected` - Rejected
+- `expired` - Expired
 
-**Lifecycle Hooks:**
-- On save with `status=verified`:
-  - Updates `user.is_email_verified` or `user.is_phone_verified`
-  - Sets `user.is_verified = True` if both email and phone are verified
+**Meta:**
+```python
+db_table = 'verifications'
+ordering = ['-created_at']
+```
+
+**Hooks:**
+- `save()` - Updates user verification flags (requires additional User fields)
+
+**Related Names:**
+- From User: `verifications`
+
+**Note:** Current User model doesn't have `is_email_verified`, `is_phone_verified` fields yet.
 
 ---
 
-### 📦 `EmergencyContact`
+### EmergencyContact Model
 
-Emergency contacts for safety features.
+**Table:** `emergency_contacts`
 
-**Database Table:** `emergency_contacts`
+User's emergency contacts for safety features.
+
+**Fields:**
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| `id` | BigAutoField | PK, Auto | Primary key |
-| `user` | ForeignKey | → User, CASCADE | User who added contact |
+| `id` | AutoField | PK | Primary key |
+| `user` | ForeignKey(User) | Required, CASCADE | Contact owner |
 | `name` | CharField(100) | Required | Contact name |
-| `phone_number` | CharField(20) | Required | Contact phone number |
-| `relationship` | CharField(50) | Optional | Relationship (e.g., "Mom", "Friend") |
-| `notify_on_checkin` | BooleanField | Default: False | Notify when user checks in |
-| `notify_on_activity_join` | BooleanField | Default: False | Notify when user joins activity |
+| `phone_number` | CharField(20) | Required | Contact phone |
+| `relationship` | CharField(50) | Optional | Relationship to user |
+| `notify_on_checkin` | BooleanField | Default: False | Auto-notify on check-in |
+| `notify_on_activity_join` | BooleanField | Default: False | Auto-notify on activity join |
 | `created_at` | DateTimeField | Auto | Creation timestamp |
+
+**Meta:**
+```python
+db_table = 'emergency_contacts'
+ordering = ['name']
+```
+
+**Related Names:**
+- From User: `emergency_contacts`
 
 ---
 
-## Quick Reference: All Tables
+## Relationships Diagram
 
-| Table Name | Model | App |
-|------------|-------|-----|
-| `users` | User | users |
-| `personality_traits` | PersonalityTrait | users |
-| `user_personality_traits` | UserPersonalityTrait | users |
-| `user_preferences` | UserPreferences | users |
-| `activity_categories` | ActivityCategory | activities |
-| `activities` | Activity | activities |
-| `activity_participants` | ActivityParticipant | activities |
-| `activity_comments` | ActivityComment | activities |
-| `user_locations` | UserLocation | locations |
-| `connections` | Connection | social |
-| `messages` | Message | social |
-| `user_reviews` | UserReview | safety |
-| `reports` | Report | safety |
-| `verifications` | Verification | safety |
-| `emergency_contacts` | EmergencyContact | safety |
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                            USER                                   │
+│  - email (unique)                                                 │
+│  - username                                                       │
+│  - bio, avatar                                                    │
+└──────┬──────┬──────┬──────┬──────┬──────┬──────┬────────────────┘
+       │      │      │      │      │      │      │
+       │      │      │      │      │      │      └─────────┐
+       │      │      │      │      │      │                │
+       ▼      ▼      ▼      ▼      ▼      ▼                ▼
+   ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐      ┌──────────────┐
+   │ACT │ │LOC │ │CON │ │MSG │ │REV │ │REP │      │  EMERGENCY   │
+   │    │ │    │ │    │ │    │ │    │ │    │      │   CONTACT    │
+   └─┬──┘ └────┘ └────┘ └────┘ └────┘ └────┘      └──────────────┘
+     │
+     ├─────┬──────────┬─────────────┐
+     ▼     ▼          ▼             ▼
+  ┌────┐ ┌────┐  ┌────────┐  ┌──────────┐
+  │CAT │ │PAR │  │COMMENT │  │VERIF     │
+  └────┘ └────┘  └────────┘  └──────────┘
+```
+
+**Legend:**
+- ACT = Activity
+- LOC = UserLocation
+- CON = Connection
+- MSG = Message
+- REV = UserReview
+- REP = Report
+- CAT = ActivityCategory
+- PAR = ActivityParticipant
+- VERIF = Verification
+
+---
+
+## Indexes & Performance
+
+### Spatial Indexes
+
+**Activities:**
+```python
+Index(fields=['latitude', 'longitude'])  # Nearby activities search
+```
+
+**UserLocation:**
+```python
+Index(fields=['latitude', 'longitude'])  # Nearby users search
+Index(fields=['is_current', 'is_visible'])  # Filter current visible locations
+```
+
+### Temporal Indexes
+
+**Activities:**
+```python
+Index(fields=['start_time'])  # Filter upcoming activities
+Index(fields=['status'])  # Filter by status
+```
+
+**UserLocation:**
+```python
+Index(fields=['-timestamp'])  # Recent locations first
+```
+
+**Messages:**
+```python
+Index(fields=['-sent_at'])  # Recent messages first
+Index(fields=['sender', 'recipient'])  # Conversation queries
+```
+
+### Recommendations for Production
+
+1. **PostGIS Extension**: Use PostgreSQL with PostGIS for efficient spatial queries
+   ```python
+   # Install: apt-get install postgis postgresql-contrib
+   # In settings.py:
+   INSTALLED_APPS += ['django.contrib.gis']
+   
+   # Change location fields to:
+   from django.contrib.gis.db.models import PointField
+   location = PointField(geography=True)
+   ```
+
+2. **Database Indexes**: Current indexes cover basic queries, but consider:
+   - Composite indexes for common filter combinations
+   - Partial indexes for filtered queries (e.g., `WHERE status='active'`)
+   - GIN indexes for full-text search on descriptions
+
+3. **Caching**: Use Redis for:
+   - User location cache (expire after 5 minutes)
+   - Nearby users/activities (invalidate on location update)
+   - Connection status (invalidate on status change)
+
+4. **Query Optimization**:
+   - Use `select_related()` for foreign keys
+   - Use `prefetch_related()` for reverse foreign keys and M2M
+   - Implement pagination on all list views
+
+---
+
+## Future Enhancements
+
+### Planned Models (Currently Commented Out)
+
+**PersonalityTrait**
+- Predefined personality traits (e.g., "Adventurous", "Social")
+- M2M relationship with User through UserPersonalityTrait
+- Used for personality matching
+
+**UserPreferences**
+- One-to-one with User
+- Discovery settings (radius, age range, min trust score)
+- Notification preferences
+- Privacy settings
+
+### Additional User Fields (Planned)
+
+```python
+# Add to User model:
+is_email_verified = models.BooleanField(default=False)
+is_phone_verified = models.BooleanField(default=False)
+is_verified = models.BooleanField(default=False)
+trust_score = models.DecimalField(max_digits=3, decimal_places=2, default=3.00)
+phone_number = models.CharField(max_length=20, blank=True)
+date_of_birth = models.DateField(null=True, blank=True)
+```
+
+---
+
+## Migration History
+
+**Current State:**
+- All models migrated and functional
+- Database uses `db.sqlite3` in development
+- Ready for PostgreSQL/PostGIS in production
+
+**Pending Migrations:**
+- None (all apps migrated)
+
+**Rolling Back:**
+```bash
+# Rollback specific app
+python manage.py migrate activities 0001
+
+# Reset entire database
+python manage.py flush
+python manage.py migrate
+```
+
+---
+
+## Seeding Data
+
+Use `seed_data.py` to populate development database:
+
+```python
+python manage.py shell
+>>> exec(open('seed_data.py').read())
+>>> seed_all()
+```
+
+This creates:
+- Activity categories
+- Sample users
+- Sample activities
+- Sample locations
+- Sample connections
+
+---
+
+**Last Updated:** December 6, 2025  
+**Schema Version:** 1.0

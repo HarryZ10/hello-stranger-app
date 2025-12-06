@@ -84,6 +84,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 USE_POSTGRES = config('USE_POSTGRES', default=False, cast=bool)
 
 if USE_POSTGRES:
+    db_options = {
+        'connect_timeout': 10,
+    }
+    # Only add sslmode if explicitly configured
+    db_sslmode = config('DB_SSLMODE', default='prefer')
+    if db_sslmode:
+        db_options['sslmode'] = db_sslmode
+    
     DATABASES = {
         'default': {
             'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
@@ -92,9 +100,8 @@ if USE_POSTGRES:
             'PASSWORD': config('DB_PASSWORD'),
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT', default='5432'),
-            'OPTIONS': {
-                'sslmode': 'require',
-            },
+            'OPTIONS': db_options,
+            'CONN_MAX_AGE': 60,
         }
     }
 else:
