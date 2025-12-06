@@ -1,9 +1,9 @@
 import type {
-    Activity,
-    ActivityCategory,
-    ActivityComment,
-    ActivityParticipant,
-    PaginatedResponse,
+  Activity,
+  ActivityCategory,
+  ActivityComment,
+  ActivityParticipant,
+  PaginatedResponse,
 } from '../../types';
 import apiClient from '../client';
 
@@ -104,7 +104,7 @@ export const activitiesApi = {
    * Get my activities (created by me)
    */
   async getMyActivities(): Promise<PaginatedResponse<Activity>> {
-    const response = await apiClient.get<PaginatedResponse<Activity>>('/activities/my-activities/');
+    const response = await apiClient.get<PaginatedResponse<Activity>>('/activities/mine/');
     return response.data;
   },
 
@@ -112,7 +112,7 @@ export const activitiesApi = {
    * Get activities I'm participating in
    */
   async getJoinedActivities(): Promise<PaginatedResponse<Activity>> {
-    const response = await apiClient.get<PaginatedResponse<Activity>>('/activities/joined/');
+    const response = await apiClient.get<PaginatedResponse<Activity>>('/activities/participating/');
     return response.data;
   },
 
@@ -163,15 +163,16 @@ export const activitiesApi = {
    * Check in to activity
    */
   async checkIn(activityId: number): Promise<void> {
-    await apiClient.post(`/activities/${activityId}/check-in/`);
+    await apiClient.post(`/activities/${activityId}/checkin/`);
   },
 
-  /**
-   * Check out of activity
-   */
-  async checkOut(activityId: number): Promise<void> {
-    await apiClient.post(`/activities/${activityId}/check-out/`);
-  },
+  // Note: Backend doesn't have checkout endpoint yet
+  // /**
+  //  * Check out of activity
+  //  */
+  // async checkOut(activityId: number): Promise<void> {
+  //   await apiClient.post(`/activities/${activityId}/checkout/`);
+  // },
 
   // Comments
 

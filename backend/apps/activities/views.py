@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.locations.models import UserLocation
-from apps.users.models import UserPreferences
 
 from .models import Activity, ActivityCategory, ActivityComment, ActivityParticipant
 from .serializers import (
@@ -17,6 +16,9 @@ from .serializers import (
     ActivityParticipantSerializer,
     NearbyActivitySerializer,
 )
+
+# from apps.users.models import UserPreferences  # Commented out - model doesn't exist
+
 
 User = get_user_model()
 
@@ -145,8 +147,9 @@ class NearbyActivitiesView(APIView):
         if radius:
             radius = float(radius)
         else:
-            prefs = UserPreferences.objects.filter(user=request.user).first()
-            radius = prefs.discovery_radius_km if prefs else 10
+            # prefs = UserPreferences.objects.filter(user=request.user).first()
+            # radius = prefs.discovery_radius_km if prefs else 10
+            radius = 10  # Default radius in km
         
         # Get nearby activities
         nearby = UserLocation.get_nearby_activities(

@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   RefreshControl,
@@ -17,6 +17,7 @@ import ActivityCard from '@/components/ActivityCard';
 import BottomSheetMenu, { BottomSheetMenuRef } from '@/components/BottomSheetMenu';
 import CategoryChip from '@/components/CategoryChip';
 import { theme } from '@/constants/theme';
+import { activitiesApi } from '@/src/api/endpoints/activities';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useLocation } from '@/src/hooks/useLocation';
 import type { Activity, ActivityCategory } from '@/src/types';
@@ -102,7 +103,7 @@ export default function HomeScreen() {
   const bottomSheetRef = useRef<BottomSheetMenuRef>(null);
 
   const { isAuthenticated, user } = useAuth();
-  const { currentLocation, requestPermission, getCurrentLocation } = useLocation({
+  const { currentLocation, locationPermission, requestPermission, getCurrentLocation } = useLocation({
     autoFetch: true,
   });
 
@@ -110,17 +111,62 @@ export default function HomeScreen() {
   const [categories, setCategories] = useState<ActivityCategory[]>(mockCategories);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasPromptedLocation, setHasPromptedLocation] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Request location permission on first load
+  useEffect(() => {
+    if (!hasPromptedLocation && locationPermission === null) {
+      setHasPromptedLocation(true);
+      requestPermission();
+    }
+  }, [locationPermission, hasPromptedLocation]);
+
+  // Load initial data
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const [activitiesData, categoriesData] = await Promise.all([
+        activitiesApi.getActivities(),
+        activitiesApi.getCategories(),
+      ]);
+      
+      // Ensure we have valid arrays
+      if (activitiesData) {
+        setActivities(Array.isArray(activitiesData) ? activitiesData : (activitiesData.results || []));
+      }
+      
+      if (categoriesData && Array.isArray(categoriesData)) {
+        setCategories(categoriesData);
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      // Keep mock data on error for demo purposes
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // In production, fetch real data
-      // const [activitiesData, categoriesData] = await Promise.all([
-      //   activitiesApi.getActivities(),
-      //   activitiesApi.getCategories(),
-      // ]);
-      // setActivities(activitiesData.results);
-      // setCategories(categoriesData);
+      const [activitiesData, categoriesData] = await Promise.all([
+        activitiesApi.getActivities(),
+        activitiesApi.getCategories(),
+      ]);
+      
+      // Ensure we have valid arrays
+      if (activitiesData) {
+        setActivities(Array.isArray(activitiesData) ? activitiesData : (activitiesData.results || []));
+      }
+      
+      if (categoriesData && Array.isArray(categoriesData)) {
+        setCategories(categoriesData);
+      }
     } catch (error) {
       console.error('Failed to refresh:', error);
     }
@@ -133,12 +179,12 @@ export default function HomeScreen() {
 
   const handleActivityPress = (activity: Activity) => {
     // Navigate to activity detail
-    console.log('Activity pressed:', activity.id);
+    router.push(`/activity/${activity.id}`);
   };
 
   const handleCreateActivity = () => {
     // Navigate to create activity
-    console.log('Create activity');
+    router.push('/create-activity');
   };
 
   return (
@@ -261,7 +307,7 @@ export default function HomeScreen() {
               All
             </Text>
           </TouchableOpacity>
-          {categories.map((category) => (
+          {Array.isArray(categories) && categories.map((category) => (
             <CategoryChip
               key={category.id}
               category={category}

@@ -6,13 +6,10 @@ from rest_framework.views import APIView
 
 from apps.locations.models import UserLocation
 
-from .models import PersonalityTrait, UserPersonalityTrait, UserPreferences
-from .serializers import (
+# from .models import PersonalityTrait, UserPersonalityTrait, UserPreferences
+from .serializers import (  # PersonalityTraitSerializer,; UserPersonalityTraitSerializer,; UserPreferencesSerializer,
     NearbyUserSerializer,
-    PersonalityTraitSerializer,
     UserDetailSerializer,
-    UserPersonalityTraitSerializer,
-    UserPreferencesSerializer,
     UserPublicSerializer,
     UserRegistrationSerializer,
     UserSerializer,
@@ -52,48 +49,49 @@ class UserListView(generics.ListAPIView):
     permission_classes = [permissions.IsAdminUser]
 
 
-class UserPreferencesView(generics.RetrieveUpdateAPIView):
-    """API endpoint for user preferences"""
-    serializer_class = UserPreferencesSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_object(self):
-        prefs, _ = UserPreferences.objects.get_or_create(user=self.request.user)
-        return prefs
+# COMMENTED OUT - These models don't exist yet
+# class UserPreferencesView(generics.RetrieveUpdateAPIView):
+#     """API endpoint for user preferences"""
+#     serializer_class = UserPreferencesSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+#     
+#     def get_object(self):
+#         prefs, _ = UserPreferences.objects.get_or_create(user=self.request.user)
+#         return prefs
 
 
-class PersonalityTraitListView(generics.ListAPIView):
-    """API endpoint for listing all personality traits"""
-    queryset = PersonalityTrait.objects.all()
-    serializer_class = PersonalityTraitSerializer
-    permission_classes = [permissions.IsAuthenticated]
+# class PersonalityTraitListView(generics.ListAPIView):
+#     """API endpoint for listing all personality traits"""
+#     queryset = PersonalityTrait.objects.all()
+#     serializer_class = PersonalityTraitSerializer
+#     permission_classes = [permissions.IsAuthenticated]
 
 
-class UserPersonalityTraitsView(APIView):
-    """API endpoint for managing user's personality traits"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request):
-        traits = UserPersonalityTrait.objects.filter(user=request.user).select_related('personality_trait')
-        serializer = UserPersonalityTraitSerializer(traits, many=True)
-        return Response(serializer.data)
-    
-    def post(self, request):
-        """Add a personality trait to user"""
-        serializer = UserPersonalityTraitSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, trait_id=None):
-        """Remove a personality trait from user"""
-        try:
-            trait = UserPersonalityTrait.objects.get(user=request.user, personality_trait_id=trait_id)
-            trait.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except UserPersonalityTrait.DoesNotExist:
-            return Response({"error": "Trait not found"}, status=status.HTTP_404_NOT_FOUND)
+# class UserPersonalityTraitsView(APIView):
+#     """API endpoint for managing user's personality traits"""
+#     permission_classes = [permissions.IsAuthenticated]
+#     
+#     def get(self, request):
+#         traits = UserPersonalityTrait.objects.filter(user=request.user).select_related('personality_trait')
+#         serializer = UserPersonalityTraitSerializer(traits, many=True)
+#         return Response(serializer.data)
+#     
+#     def post(self, request):
+#         """Add a personality trait to user"""
+#         serializer = UserPersonalityTraitSerializer(data=request.data)
+#         if serializer.is_valid():
+#             serializer.save(user=request.user)
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     
+#     def delete(self, request, trait_id=None):
+#         """Remove a personality trait from user"""
+#         try:
+#             trait = UserPersonalityTrait.objects.get(user=request.user, personality_trait_id=trait_id)
+#             trait.delete()
+#             return Response(status=status.HTTP_204_NO_CONTENT)
+#         except UserPersonalityTrait.DoesNotExist:
+#             return Response({"error": "Trait not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class NearbyUsersView(APIView):
@@ -118,8 +116,9 @@ class NearbyUsersView(APIView):
         if radius:
             radius = float(radius)
         else:
-            prefs = UserPreferences.objects.filter(user=request.user).first()
-            radius = prefs.discovery_radius_km if prefs else 10
+            # prefs = UserPreferences.objects.filter(user=request.user).first()
+            # radius = prefs.discovery_radius_km if prefs else 10
+            radius = 10  # Default radius in km
         
         # Get nearby users
         nearby = UserLocation.get_nearby_users(

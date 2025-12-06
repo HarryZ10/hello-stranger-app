@@ -6,7 +6,7 @@ export const authApi = {
    * Register a new user
    */
   async register(data: RegisterRequest): Promise<User> {
-    const response = await apiClient.post<User>('/users/register/', data);
+    const response = await apiClient.post<User>('/auth/register/', data);
     return response.data;
   },
 
@@ -14,7 +14,7 @@ export const authApi = {
    * Login with email and password
    */
   async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>('/users/login/', {
+    const response = await apiClient.post<LoginResponse>('/auth/login/', {
       email,
       password,
     });
@@ -36,7 +36,7 @@ export const authApi = {
    * Refresh access token
    */
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
-    const response = await apiClient.post<AuthTokens>('/users/token/refresh/', {
+    const response = await apiClient.post<AuthTokens>('/auth/refresh/', {
       refresh: refreshToken,
     });
     return response.data;
@@ -46,7 +46,7 @@ export const authApi = {
    * Get current user profile
    */
   async getProfile(): Promise<User> {
-    const response = await apiClient.get<User>('/users/profile/');
+    const response = await apiClient.get<User>('/users/me/');
     return response.data;
   },
 
@@ -54,7 +54,7 @@ export const authApi = {
    * Update current user profile
    */
   async updateProfile(data: Partial<User>): Promise<User> {
-    const response = await apiClient.patch<User>('/users/profile/', data);
+    const response = await apiClient.patch<User>('/users/me/', data);
     return response.data;
   },
 
@@ -62,7 +62,7 @@ export const authApi = {
    * Change password
    */
   async changePassword(oldPassword: string, newPassword: string): Promise<void> {
-    await apiClient.post('/users/change-password/', {
+    await apiClient.post('/auth/change-password/', {
       old_password: oldPassword,
       new_password: newPassword,
     });

@@ -14,7 +14,7 @@ export const locationsApi = {
    * Update current location
    */
   async updateLocation(data: UpdateLocationData): Promise<UserLocation> {
-    const response = await apiClient.post<UserLocation>('/locations/', data);
+    const response = await apiClient.post<UserLocation>('/location/update/', data);
     return response.data;
   },
 
@@ -22,7 +22,7 @@ export const locationsApi = {
    * Get my location history
    */
   async getMyLocations(): Promise<UserLocation[]> {
-    const response = await apiClient.get<UserLocation[]>('/locations/');
+    const response = await apiClient.get<UserLocation[]>('/location/history/');
     return response.data;
   },
 
@@ -30,7 +30,7 @@ export const locationsApi = {
    * Get my current location
    */
   async getCurrentLocation(): Promise<UserLocation | null> {
-    const response = await apiClient.get<UserLocation>('/locations/current/');
+    const response = await apiClient.get<UserLocation>('/location/current/');
     return response.data;
   },
 
@@ -42,8 +42,8 @@ export const locationsApi = {
     longitude: number,
     radiusKm: number = 10
   ): Promise<NearbyUser[]> {
-    const response = await apiClient.get<NearbyUser[]>('/locations/nearby/users/', {
-      params: { latitude, longitude, radius_km: radiusKm },
+    const response = await apiClient.get<NearbyUser[]>('/users/nearby/', {
+      params: { latitude, longitude, radius: radiusKm },
     });
     return response.data;
   },
@@ -56,8 +56,8 @@ export const locationsApi = {
     longitude: number,
     radiusKm: number = 10
   ): Promise<NearbyActivity[]> {
-    const response = await apiClient.get<NearbyActivity[]>('/locations/nearby/activities/', {
-      params: { latitude, longitude, radius_km: radiusKm },
+    const response = await apiClient.get<NearbyActivity[]>('/activities/nearby/', {
+      params: { latitude, longitude, radius: radiusKm },
     });
     return response.data;
   },

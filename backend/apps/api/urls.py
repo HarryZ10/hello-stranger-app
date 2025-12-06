@@ -4,12 +4,9 @@ Main API URL configuration
 from django.urls import include, path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
-from apps.users.views import (
+from apps.users.views import (  # PersonalityTraitListView,  # Commented out - model doesn't exist; UserPersonalityTraitsView,  # Commented out - model doesn't exist; UserPreferencesView,  # Commented out - model doesn't exist
     NearbyUsersView,
-    PersonalityTraitListView,
     UserListView,
-    UserPersonalityTraitsView,
-    UserPreferencesView,
     UserProfileView,
     UserPublicProfileView,
     UserRegistrationView,
@@ -26,15 +23,15 @@ urlpatterns = [
     
     # User endpoints
     path('users/me/', UserProfileView.as_view(), name='user_profile'),
-    path('users/me/preferences/', UserPreferencesView.as_view(), name='user_preferences'),
-    path('users/me/traits/', UserPersonalityTraitsView.as_view(), name='user_traits'),
-    path('users/me/traits/<int:trait_id>/', UserPersonalityTraitsView.as_view(), name='user_trait_delete'),
+    # path('users/me/preferences/', UserPreferencesView.as_view(), name='user_preferences'),  # Disabled
+    # path('users/me/traits/', UserPersonalityTraitsView.as_view(), name='user_traits'),  # Disabled
+    # path('users/me/traits/<int:trait_id>/', UserPersonalityTraitsView.as_view(), name='user_trait_delete'),  # Disabled
     path('users/nearby/', NearbyUsersView.as_view(), name='nearby_users'),
     path('users/<int:id>/', UserPublicProfileView.as_view(), name='user_public_profile'),
     path('users/', UserListView.as_view(), name='user_list'),
     
     # Personality traits
-    path('traits/', PersonalityTraitListView.as_view(), name='personality_traits'),
+    # path('traits/', PersonalityTraitListView.as_view(), name='personality_traits'),  # Disabled
     
     # Activities
     path('activities/', include('apps.activities.urls', namespace='activities')),
