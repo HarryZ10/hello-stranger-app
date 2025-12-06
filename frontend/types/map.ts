@@ -10,6 +10,12 @@ export interface Pin {
   title: string;
   activity?: string;
   description?: string;
+  createdByUser?: boolean;
+  createdBy?: string;
+  categoryId?: number;
+  categoryName?: string;
+  categoryColor?: string;
+  categoryIcon?: string;
 }
 
 export interface ActivityForm {

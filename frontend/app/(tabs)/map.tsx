@@ -5,7 +5,7 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useLocation } from "@/hooks/use-location";
 import { Pin, UserLocation } from "@/types/map";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -13,7 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { activitiesService, ActivityCategory } from "@/src/api/activities";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 // Lazy load MapView only on native platforms
 const MapView =
@@ -23,6 +25,7 @@ const Marker =
 
 export default function MapScreen() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
   const { userLocation, loading, permissionDenied } = useLocation();
 
   const [pins, setPins] = useState<Pin[]>([]);
@@ -33,7 +36,12 @@ export default function MapScreen() {
     activity: "",
     description: "",
     people: "",
+    categoryId: null as number | null,
   });
+  const [categories, setCategories] = useState<ActivityCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null
+  );
   const [selectingLocation, setSelectingLocation] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<UserLocation | null>(
     null
@@ -42,15 +50,25 @@ export default function MapScreen() {
 
   // Initialize sample pin when user location is available
   React.useEffect(() => {
-    if (userLocation && pins.length === 0) {
+    if (userLocation && pins.length === 0 && categories.length > 0) {
+      // Find "Arts and Culture" category
+      const artsCategory = categories.find(
+        (c) => c.name.toLowerCase() === "arts and culture"
+      ) || categories[0];
+      
       setPins([
         {
           id: "pin-1",
           latitude: userLocation.latitude + 0.002,
           longitude: userLocation.longitude + 0.002,
-          title: "Pin 1",
-          activity: "Running",
-          description: "Morning jog in the park",
+          title: "Museum Tour",
+          activity: "Museum Tour",
+          description: "Join us on a group museum trip!",
+          createdBy: "Alex Johnson",
+          categoryId: artsCategory.id,
+          categoryName: artsCategory.name,
+          categoryColor: artsCategory.color,
+          categoryIcon: artsCategory.icon,
         },
       ]);
 
@@ -64,7 +82,16 @@ export default function MapScreen() {
         });
       }
     }
-  }, [userLocation]);
+  }, [userLocation, categories]);
+
+  useEffect(() => {
+    (async () => {
+      const res = await activitiesService.getCategories();
+      if (res.data?.results) {
+        setCategories(res.data.results);
+      }
+    })();
+  }, []);
 
   const handleSelectPin = (pin: Pin) => {
     setSelectedPin(pin);
@@ -104,6 +131,30 @@ export default function MapScreen() {
 
   const handleConfirmLocationSelection = () => {
     setSelectingLocation(false);
+    // Create the pin when location is confirmed
+    if (selectedLocation && activityForm.activity) {
+      const category = categories.find(
+        (c) => c.id === (selectedCategoryId ?? activityForm.categoryId)
+      );
+      const newPin: Pin = {
+        id: `pin-${Date.now()}`,
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+        title: activityForm.activity,
+        activity: activityForm.activity,
+        description: activityForm.description,
+        createdByUser: true,
+        categoryId: category?.id,
+        categoryName: category?.name,
+        categoryColor: category?.color,
+        categoryIcon: category?.icon,
+      };
+      setPins([...pins, newPin]);
+      setIsCreatingActivity(false);
+      setActivityForm({ activity: "", description: "", people: "", categoryId: null });
+      setSelectedCategoryId(null);
+      setSelectedLocation(null);
+    }
   };
 
   const handleRecenterMap = () => {
@@ -154,6 +205,17 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Profile Button */}
+      <TouchableOpacity
+        style={[
+          styles.profileButton,
+          { backgroundColor: Colors[colorScheme ?? "light"].tint },
+        ]}
+        onPress={() => router.push("/profile")}
+      >
+        <MaterialCommunityIcons name="account-circle" size={28} color="#fff" />
+      </TouchableOpacity>
+
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -188,7 +250,31 @@ export default function MapScreen() {
             title={pin.title}
             description={pin.activity}
             onPress={() => handleSelectPin(pin)}
-          />
+          >
+            <View
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                backgroundColor: pin.categoryColor || "#8B5CF6",
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 3,
+                borderColor: "#fff",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+                elevation: 5,
+              }}
+            >
+              {pin.categoryIcon && (
+                <ThemedText style={{ fontSize: 28 }}>
+                  {pin.categoryIcon}
+                </ThemedText>
+              )}
+            </View>
+          </Marker>
         ))}
 
         {selectingLocation && selectedLocation && (
@@ -219,10 +305,13 @@ export default function MapScreen() {
         pins={pins}
         joinedPins={joinedPins}
         colorScheme={colorScheme}
+        categories={categories}
+        selectedCategoryId={selectedCategoryId}
         onSelectPin={handleSelectPin}
         onJoinPin={handleJoinPin}
         onCreateActivityToggle={setIsCreatingActivity}
         onFormChange={setActivityForm}
+        onSelectCategory={setSelectedCategoryId}
         onAddPin={(newPin: Pin) => {
           setPins([...pins, newPin]);
           setIsCreatingActivity(false);
@@ -281,5 +370,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     zIndex: 5,
+  },
+  profileButton: {
+    position: "absolute",
+    top: 60,
+    left: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 10,
   },
 });

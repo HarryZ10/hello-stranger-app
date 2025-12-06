@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
 import { Pin } from "@/types/map";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { ActivityCategory } from "@/src/api/activities";
 import React from "react";
 import {
   ScrollView,
@@ -10,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  FlatList,
 } from "react-native";
 
 interface BottomMenuProps {
@@ -19,6 +21,8 @@ interface BottomMenuProps {
   pins: Pin[];
   joinedPins: Set<string>;
   colorScheme: string | null | undefined;
+  categories?: ActivityCategory[];
+  selectedCategoryId?: number | null;
   onSelectPin: (pin: Pin) => void;
   onJoinPin: (pinId: string) => void;
   onCreateActivityToggle: (value: boolean) => void;
@@ -27,6 +31,7 @@ interface BottomMenuProps {
     description: string;
     people: string;
   }) => void;
+  onSelectCategory?: (categoryId: number | null) => void;
   onAddPin: (pin: Pin) => void;
   onSelectLocation: () => void;
   onDeselectPin: () => void;
@@ -41,10 +46,13 @@ export function BottomMenu({
   pins,
   joinedPins,
   colorScheme,
+  categories = [],
+  selectedCategoryId,
   onSelectPin,
   onJoinPin,
   onCreateActivityToggle,
   onFormChange,
+  onSelectCategory,
   onAddPin,
   onSelectLocation,
   onDeselectPin,
@@ -74,9 +82,20 @@ export function BottomMenu({
             <ThemedText style={styles.backButtonText}>Back</ThemedText>
           </TouchableOpacity>
 
-          <ThemedText style={styles.pinDetailTitle}>
-            {selectedPin.title}
-          </ThemedText>
+          <View style={styles.titleContainer}>
+            <ThemedText style={styles.pinDetailTitle}>
+              {selectedPin.title}
+            </ThemedText>
+            {selectedPin.createdByUser && (
+              <ThemedText style={styles.yourActivityText}>Your activity</ThemedText>
+            )}
+          </View>
+
+          {!selectedPin.createdByUser && selectedPin.createdBy && (
+            <ThemedText style={styles.createdByText}>
+              Activity by: {selectedPin.createdBy}
+            </ThemedText>
+          )}
 
           <View style={styles.detailSection}>
             <ThemedText style={styles.detailLabel}>Activity:</ThemedText>
@@ -94,17 +113,19 @@ export function BottomMenu({
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.joinButton,
-              joinedPins.has(selectedPin.id) && styles.joinedButton,
-            ]}
-            onPress={() => onJoinPin(selectedPin.id)}
-          >
-            <ThemedText style={styles.joinButtonText}>
-              {joinedPins.has(selectedPin.id) ? "Joined" : "Join"}
-            </ThemedText>
-          </TouchableOpacity>
+          {!selectedPin.createdByUser && (
+            <TouchableOpacity
+              style={[
+                styles.joinButton,
+                joinedPins.has(selectedPin.id) && styles.joinedButton,
+              ]}
+              onPress={() => onJoinPin(selectedPin.id)}
+            >
+              <ThemedText style={styles.joinButtonText}>
+                {joinedPins.has(selectedPin.id) ? "Joined" : "Join"}
+              </ThemedText>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       ) : (
         // Pin List View or Create Activity View
@@ -127,13 +148,29 @@ export function BottomMenu({
                   style={styles.pinItem}
                   onPress={() => onSelectPin(pin)}
                 >
-                  <MaterialCommunityIcons
-                    name="map-marker"
-                    size={20}
-                    color={
-                      Colors[(colorScheme ?? "light") as "light" | "dark"].tint
-                    }
-                  />
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: pin.categoryColor || "#8B5CF6",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginRight: 4,
+                    }}
+                  >
+                    {pin.categoryIcon ? (
+                      <ThemedText style={{ fontSize: 18 }}>
+                        {pin.categoryIcon}
+                      </ThemedText>
+                    ) : (
+                      <MaterialCommunityIcons
+                        name="account"
+                        size={20}
+                        color="#fff"
+                      />
+                    )}
+                  </View>
                   <ThemedText style={styles.pinTitle}>{pin.title}</ThemedText>
                 </TouchableOpacity>
               ))}
@@ -203,26 +240,60 @@ export function BottomMenu({
                 />
               </View>
 
+              <View style={styles.formSection}>
+                <ThemedText style={styles.formLabel}>Category:</ThemedText>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.categoryScroll}
+                >
+                  {categories.map((category) => (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[
+                        styles.categoryChip,
+                        selectedCategoryId === category.id &&
+                          styles.categoryChipSelected,
+                      ]}
+                      onPress={() =>
+                        onSelectCategory?.(
+                          selectedCategoryId === category.id
+                            ? null
+                            : category.id
+                        )
+                      }
+                    >
+                      <View
+                        style={[
+                          styles.categoryColorDot,
+                          { backgroundColor: category.color || "#007AFF" },
+                        ]}
+                      />
+                      <ThemedText
+                        style={[
+                          styles.categoryChipText,
+                          selectedCategoryId === category.id &&
+                            styles.categoryChipTextSelected,
+                        ]}
+                      >
+                        {category.name}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
               <TouchableOpacity
                 style={styles.submitActivityButton}
                 onPress={() => {
-                  if (selectedLocation && activityForm.activity) {
-                    const newPin: Pin = {
-                      id: `pin-${Date.now()}`,
-                      latitude: selectedLocation.latitude,
-                      longitude: selectedLocation.longitude,
-                      title: activityForm.activity,
-                      activity: activityForm.activity,
-                      description: activityForm.description,
-                    };
-                    onAddPin(newPin);
-                  } else {
+                  if (activityForm.activity) {
                     onSelectLocation();
                   }
                 }}
+                disabled={!activityForm.activity}
               >
                 <ThemedText style={styles.submitActivityButtonText}>
-                  {selectedLocation ? "Create Activity" : "Select Location"}
+                  Select Location
                 </ThemedText>
               </TouchableOpacity>
             </ScrollView>
@@ -259,10 +330,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    marginBottom: 16,
+  },
   pinDetailTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 16,
+  },
+  yourActivityText: {
+    fontSize: 14,
+    fontStyle: "italic",
+    opacity: 0.7,
+  },
+  createdByText: {
+    fontSize: 13,
+    opacity: 0.6,
+    marginBottom: 12,
   },
   detailSection: {
     marginBottom: 16,
@@ -369,5 +455,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
+  },
+  categoryScroll: {
+    marginVertical: 8,
+  },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.1)",
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
+  },
+  categoryChipSelected: {
+    borderColor: "#007AFF",
+    backgroundColor: "rgba(0, 122, 255, 0.1)",
+  },
+  categoryColorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  categoryChipTextSelected: {
+    fontWeight: "600",
+    color: "#007AFF",
   },
 });
