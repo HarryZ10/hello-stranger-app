@@ -1,8 +1,11 @@
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  ImageBackground,
+} from "react-native";
 
-import { GlobeAnimation } from "@/components/globe-animation";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useRouter } from "expo-router";
@@ -17,34 +20,40 @@ export default function HomeScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <GlobeAnimation />
-        <ThemedText style={styles.appTitle}>Hey Stranger</ThemedText>
-      </View>
+    <ImageBackground
+      source={require("@/assets/images/MainPage.png")}
+      style={styles.container}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay}>
+        {/* Hero Section */}
+        <View style={styles.heroSection}></View>
 
-      {/* CTA Button */}
-      <View style={styles.buttonSection}>
-        <TouchableOpacity
-          style={[
-            styles.createProfileButton,
-            {
-              backgroundColor:
-                Colors[(colorScheme ?? "light") as "light" | "dark"].tint,
-            },
-          ]}
-          onPress={handleCreateProfile}
-        >
-          <ThemedText style={styles.buttonText}>Create Profile</ThemedText>
-        </TouchableOpacity>
+        {/* CTA Button */}
+        <View style={styles.buttonSection}>
+          <TouchableOpacity
+            style={[
+              styles.createProfileButton,
+              {
+                backgroundColor:
+                  Colors[(colorScheme ?? "light") as "light" | "dark"].tint,
+              },
+            ]}
+            onPress={handleCreateProfile}
+          >
+            <ThemedText style={styles.buttonText}>Create Profile</ThemedText>
+          </TouchableOpacity>
+        </View>
       </View>
-    </ThemedView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  overlay: {
     flex: 1,
     justifyContent: "space-between",
     paddingHorizontal: 20,

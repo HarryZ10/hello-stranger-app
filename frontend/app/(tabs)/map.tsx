@@ -52,10 +52,10 @@ export default function MapScreen() {
   React.useEffect(() => {
     if (userLocation && pins.length === 0 && categories.length > 0) {
       // Find "Arts and Culture" category
-      const artsCategory = categories.find(
-        (c) => c.name.toLowerCase() === "arts and culture"
-      ) || categories[0];
-      
+      const artsCategory =
+        categories.find((c) => c.name.toLowerCase() === "arts and culture") ||
+        categories[0];
+
       setPins([
         {
           id: "pin-1",
@@ -151,7 +151,12 @@ export default function MapScreen() {
       };
       setPins([...pins, newPin]);
       setIsCreatingActivity(false);
-      setActivityForm({ activity: "", description: "", people: "", categoryId: null });
+      setActivityForm({
+        activity: "",
+        description: "",
+        people: "",
+        categoryId: null,
+      });
       setSelectedCategoryId(null);
       setSelectedLocation(null);
     }

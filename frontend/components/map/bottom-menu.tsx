@@ -87,7 +87,9 @@ export function BottomMenu({
               {selectedPin.title}
             </ThemedText>
             {selectedPin.createdByUser && (
-              <ThemedText style={styles.yourActivityText}>Your activity</ThemedText>
+              <ThemedText style={styles.yourActivityText}>
+                Your activity
+              </ThemedText>
             )}
           </View>
 
