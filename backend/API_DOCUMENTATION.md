@@ -3,7 +3,6 @@
 > Complete REST API reference for the location-based social networking application
 
 **Version:** 1.0  
-**Base URL:** `http://localhost:8000/api/`  
 **Authentication:** JWT Bearer Token (except registration & login)
 
 ---

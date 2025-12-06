@@ -4,8 +4,7 @@ import { Platform } from 'react-native';
 
 // Use your computer's local IP for physical device testing
 // For simulator/emulator, localhost works
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api';
-
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://mlh-project-production.up.railway.app/api';
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,

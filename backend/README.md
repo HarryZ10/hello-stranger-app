@@ -80,9 +80,9 @@ python manage.py runserver
 ```
 
 The API will be available at:
-- **API**: http://localhost:8000/api/
-- **Admin**: http://localhost:8000/admin/
-- **API Docs**: http://localhost:8000/api/docs/
+- **API**: http://:8000/api/
+- **Admin**: http://:8000/admin/
+- **API Docs**: http://:8000/api/docs/
 
 ## API Endpoints
 
