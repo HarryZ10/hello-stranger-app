@@ -64,6 +64,7 @@ export default function RegisterScreen() {
         username: username.trim(),
         email: email.trim(),
         password,
+        password_confirm: confirmPassword,
       });
       console.log('Registration successful');
       
