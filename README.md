@@ -36,7 +36,7 @@ Hello Stranger empowers users to:
         ▼                            ▼                             ▼
 ┌──────────────────┐         ┌──────────────────┐         ┌──────────────────┐
 │ TypeScript       │         │ Python 3.x       │         │ PostgreSQL 14+   │
-│ Expo SDK         │         │ Django 4.x       │         │ Premium Hardware │
+│ Expo SDK         │         │ Django 5.x       │         │ Premium Hardware │
 │ React Navigation │         │ Django REST FW   │         │ Auto-backups     │
 └──────────────────┘         └──────────────────┘         └──────────────────┘
 ```
@@ -89,7 +89,7 @@ mlh-project/
 - **Deployment**: Vercel (web preview)
 
 ### Backend
-- **Framework**: Django 4.x
+- **Framework**: Django 5.x
 - **API**: Django REST Framework
 - **Language**: Python 3.x
 - **Authentication**: Django Auth (JWT planned)
